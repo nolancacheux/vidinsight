@@ -125,24 +125,37 @@ export function useAnalysis(): UseAnalysisReturn {
           lastCommentsAnalyzed = parseInt(analyzedMatch[1], 10);
         }
 
-        // Simulate ML metrics during sentiment analysis stage
+        // Use real ML metrics from backend when available
         let mlUpdates: Partial<MLMetrics> = {
           processingTimeSeconds: elapsed,
         };
 
-        if (event.stage === "analyzing_sentiment") {
-          simulatedBatch++;
-          const totalComments = commentsFoundRef.current || 100;
-          const estimatedBatches = Math.ceil(totalComments / 32);
+        if (event.stage === "analyzing_sentiment" && event.data) {
+          // Real metrics from backend
+          if (event.data.ml_batch !== undefined) {
+            mlUpdates = {
+              processingSpeed: event.data.ml_speed || 0,
+              tokensProcessed: event.data.ml_tokens || 0,
+              currentBatch: event.data.ml_batch || 0,
+              totalBatches: event.data.ml_total_batches || 0,
+              processingTimeSeconds: event.data.ml_elapsed_seconds || elapsed,
+            };
 
-          mlUpdates = {
-            ...mlUpdates,
-            processingSpeed: lastCommentsAnalyzed > 0 ? lastCommentsAnalyzed / elapsed : 45 + Math.random() * 10,
-            tokensProcessed: Math.floor(lastCommentsAnalyzed * 25 + Math.random() * 500),
-            avgConfidence: 0.82 + Math.random() * 0.1,
-            currentBatch: Math.min(simulatedBatch, estimatedBatches),
-            totalBatches: estimatedBatches,
-          };
+            // Update comments analyzed from real data
+            if (event.data.ml_processed) {
+              lastCommentsAnalyzed = event.data.ml_processed;
+            }
+          }
+
+          // Final metrics after completion
+          if (event.data.ml_processing_time_seconds !== undefined) {
+            mlUpdates = {
+              ...mlUpdates,
+              processingTimeSeconds: event.data.ml_processing_time_seconds,
+              tokensProcessed: event.data.ml_total_tokens || mlUpdates.tokensProcessed || 0,
+              processingSpeed: event.data.ml_comments_per_second || 0,
+            };
+          }
         }
 
         setState((prev) => ({
