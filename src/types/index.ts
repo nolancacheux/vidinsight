@@ -26,6 +26,7 @@ export interface Comment {
   author_name: string;
   like_count: number;
   sentiment: SentimentType | null;
+  confidence: number | null;
   published_at: string | null;
 }
 
@@ -52,6 +53,14 @@ export interface SentimentSummary {
   suggestion_engagement: number;
 }
 
+export interface MLMetadata {
+  model_name: string;
+  total_tokens: number;
+  avg_confidence: number;
+  processing_time_seconds: number;
+  confidence_distribution: number[];
+}
+
 export interface AnalysisResult {
   id: number;
   video: Video;
@@ -60,6 +69,7 @@ export interface AnalysisResult {
   sentiment: SentimentSummary;
   topics: Topic[];
   recommendations: string[];
+  ml_metadata?: MLMetadata;
 }
 
 export interface ProgressEvent {

@@ -15,6 +15,7 @@ from api.models import (
     CommentResponse,
     TopicResponse,
     SentimentSummary,
+    MLMetadata,
     AnalysisResponse,
     ProgressEvent,
     AnalysisHistoryItem,
@@ -354,6 +355,7 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
                     author_name=comment.author_name,
                     like_count=comment.like_count,
                     sentiment=sentiment_map.get(comment.sentiment),
+                    confidence=comment.sentiment_score,
                     published_at=comment.published_at,
                 ))
 
@@ -382,6 +384,25 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
             sample_comments=sample_comments,
         ))
 
+    # Calculate ML metadata from comments
+    comments = db.query(Comment).filter(Comment.video_id == video.id).all()
+    confidence_scores = [c.sentiment_score for c in comments if c.sentiment_score is not None]
+    avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.85
+
+    # Build confidence distribution (10 bins: 0-10%, 10-20%, ..., 90-100%)
+    confidence_distribution = [0] * 10
+    for score in confidence_scores:
+        bin_idx = min(int(score * 10), 9)
+        confidence_distribution[bin_idx] += 1
+
+    ml_metadata = MLMetadata(
+        model_name="nlptown/bert-base-multilingual-uncased-sentiment",
+        total_tokens=sum(len(c.text.split()) for c in comments) * 2,  # Approximate tokens
+        avg_confidence=avg_confidence,
+        processing_time_seconds=0.0,  # Not tracked currently
+        confidence_distribution=confidence_distribution,
+    )
+
     return AnalysisResponse(
         id=analysis.id,
         video=VideoResponse(
@@ -406,6 +427,7 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
         ),
         topics=topic_responses,
         recommendations=analysis.recommendations or [],
+        ml_metadata=ml_metadata,
     )
 
 

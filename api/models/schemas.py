@@ -47,6 +47,7 @@ class CommentResponse(BaseModel):
     author_name: str
     like_count: int
     sentiment: SentimentType | None = None
+    confidence: float | None = None
     published_at: datetime | None = None
 
 
@@ -73,6 +74,14 @@ class SentimentSummary(BaseModel):
     suggestion_engagement: int = 0
 
 
+class MLMetadata(BaseModel):
+    model_name: str = "nlptown/bert-base-multilingual-uncased-sentiment"
+    total_tokens: int = 0
+    avg_confidence: float = 0.0
+    processing_time_seconds: float = 0.0
+    confidence_distribution: list[float] = Field(default_factory=list)
+
+
 class AnalysisResponse(BaseModel):
     id: int
     video: VideoResponse
@@ -81,6 +90,7 @@ class AnalysisResponse(BaseModel):
     sentiment: SentimentSummary
     topics: list[TopicResponse] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
+    ml_metadata: MLMetadata | None = None
 
 
 class ProgressEvent(BaseModel):
