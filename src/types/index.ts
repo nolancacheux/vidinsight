@@ -81,6 +81,19 @@ export interface ProgressEvent {
     video_title?: string;
     video_id?: string;
     analysis_id?: number;
+    // Real-time ML metrics
+    ml_batch?: number;
+    ml_total_batches?: number;
+    ml_processed?: number;
+    ml_total?: number;
+    ml_speed?: number;
+    ml_tokens?: number;
+    ml_batch_time_ms?: number;
+    ml_elapsed_seconds?: number;
+    // Final ML metrics
+    ml_processing_time_seconds?: number;
+    ml_total_tokens?: number;
+    ml_comments_per_second?: number;
   };
 }
 
