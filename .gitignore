@@ -9,7 +9,6 @@
 # Documentation
 *.md
 !README.md
-!INSTRUCTIONS.md
 
 # Python
 __pycache__/
