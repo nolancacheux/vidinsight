@@ -1,10 +1,15 @@
 import re
+import random
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 
-import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+try:
+    import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
 
 
 class SentimentCategory(str, Enum):
@@ -38,7 +43,43 @@ SUGGESTION_PATTERNS = [
     r"\bune\s+(?:suggestion|idee|proposition)\b",
 ]
 
+POSITIVE_KEYWORDS = [
+    "love", "great", "amazing", "awesome", "excellent", "perfect", "best",
+    "fantastic", "wonderful", "thank", "thanks", "helpful", "appreciate",
+    "good", "nice", "cool", "brilliant", "beautiful", "super", "genial",
+    "merci", "bravo", "magnifique", "parfait", "incroyable",
+]
+
+NEGATIVE_KEYWORDS = [
+    "hate", "terrible", "awful", "worst", "bad", "poor", "horrible",
+    "disappointing", "sucks", "boring", "annoying", "useless", "waste",
+    "wrong", "stupid", "ridiculous", "pathetic", "trash", "garbage",
+    "nul", "pourri", "mauvais", "horrible", "decevant",
+]
+
 COMPILED_SUGGESTION_PATTERNS = [re.compile(p, re.IGNORECASE) for p in SUGGESTION_PATTERNS]
+
+
+def is_suggestion(text: str) -> bool:
+    for pattern in COMPILED_SUGGESTION_PATTERNS:
+        if pattern.search(text):
+            return True
+    return False
+
+
+def simple_sentiment(text: str) -> SentimentCategory:
+    """Simple keyword-based sentiment analysis fallback."""
+    text_lower = text.lower()
+
+    positive_score = sum(1 for kw in POSITIVE_KEYWORDS if kw in text_lower)
+    negative_score = sum(1 for kw in NEGATIVE_KEYWORDS if kw in text_lower)
+
+    if positive_score > negative_score:
+        return SentimentCategory.POSITIVE
+    elif negative_score > positive_score:
+        return SentimentCategory.NEGATIVE
+    else:
+        return SentimentCategory.NEUTRAL
 
 
 class SentimentAnalyzer:
@@ -48,15 +89,20 @@ class SentimentAnalyzer:
         self._model = None
         self._tokenizer = None
         self._device = None
+        self._ml_available = ML_AVAILABLE
 
     @property
     def device(self):
+        if not self._ml_available:
+            return None
         if self._device is None:
             self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         return self._device
 
     @property
     def model(self):
+        if not self._ml_available:
+            return None
         if self._model is None:
             self._model = AutoModelForSequenceClassification.from_pretrained(self.MODEL_NAME)
             self._model.to(self.device)
@@ -65,18 +111,29 @@ class SentimentAnalyzer:
 
     @property
     def tokenizer(self):
+        if not self._ml_available:
+            return None
         if self._tokenizer is None:
             self._tokenizer = AutoTokenizer.from_pretrained(self.MODEL_NAME)
         return self._tokenizer
 
-    def is_suggestion(self, text: str) -> bool:
-        for pattern in COMPILED_SUGGESTION_PATTERNS:
-            if pattern.search(text):
-                return True
-        return False
-
     def analyze_single(self, text: str, max_length: int = 512) -> SentimentResult:
-        is_suggestion = self.is_suggestion(text)
+        is_sugg = is_suggestion(text)
+
+        if is_sugg:
+            return SentimentResult(
+                category=SentimentCategory.SUGGESTION,
+                score=0.8,
+                is_suggestion=True,
+            )
+
+        if not self._ml_available:
+            category = simple_sentiment(text)
+            return SentimentResult(
+                category=category,
+                score=0.7,
+                is_suggestion=False,
+            )
 
         inputs = self.tokenizer(
             text,
@@ -92,13 +149,6 @@ class SentimentAnalyzer:
             probabilities = torch.softmax(outputs.logits, dim=1)
             predicted_class = torch.argmax(probabilities, dim=1).item()
             confidence = probabilities[0][predicted_class].item()
-
-        if is_suggestion:
-            return SentimentResult(
-                category=SentimentCategory.SUGGESTION,
-                score=confidence,
-                is_suggestion=True,
-            )
 
         if predicted_class <= 1:
             category = SentimentCategory.NEGATIVE
@@ -119,11 +169,17 @@ class SentimentAnalyzer:
         batch_size: int = 32,
         max_length: int = 512,
     ) -> list[SentimentResult]:
+        if not self._ml_available:
+            results = []
+            for text in texts:
+                results.append(self.analyze_single(text))
+            return results
+
         results = []
 
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i : i + batch_size]
-            batch_suggestions = [self.is_suggestion(t) for t in batch_texts]
+            batch_suggestions = [is_suggestion(t) for t in batch_texts]
 
             inputs = self.tokenizer(
                 batch_texts,
