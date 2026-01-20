@@ -12,6 +12,11 @@ from .sentiment import (
     SentimentCategory,
     get_sentiment_analyzer,
 )
+from .topics import (
+    TopicModeler,
+    TopicResult,
+    get_topic_modeler,
+)
 
 __all__ = [
     "YouTubeExtractor",
@@ -24,4 +29,7 @@ __all__ = [
     "SentimentResult",
     "SentimentCategory",
     "get_sentiment_analyzer",
+    "TopicModeler",
+    "TopicResult",
+    "get_topic_modeler",
 ]
