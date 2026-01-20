@@ -10,6 +10,7 @@ from .sentiment import (
     SentimentAnalyzer,
     SentimentResult,
     SentimentCategory,
+    BatchProgress,
     get_sentiment_analyzer,
 )
 from .topics import (
@@ -28,6 +29,7 @@ __all__ = [
     "SentimentAnalyzer",
     "SentimentResult",
     "SentimentCategory",
+    "BatchProgress",
     "get_sentiment_analyzer",
     "TopicModeler",
     "TopicResult",
