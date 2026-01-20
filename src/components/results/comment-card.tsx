@@ -140,8 +140,22 @@ export function CommentCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-current/10">
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <ThumbsUp className="h-3 w-3" />
+        <div
+          className={cn(
+            "flex items-center gap-1",
+            comment.like_count >= 100
+              ? "text-amber-600 font-medium"
+              : comment.like_count >= 10
+              ? "text-slate-600"
+              : "text-muted-foreground"
+          )}
+        >
+          <ThumbsUp
+            className={cn(
+              "h-3 w-3",
+              comment.like_count >= 100 && "fill-amber-500"
+            )}
+          />
           <span className="text-[10px] tabular-nums">
             {comment.like_count.toLocaleString()}
           </span>
