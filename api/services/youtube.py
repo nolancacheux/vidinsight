@@ -107,7 +107,7 @@ class YouTubeExtractor:
         except json.JSONDecodeError:
             raise YouTubeExtractionError("Failed to parse video metadata")
 
-    def get_comments(self, url: str, max_comments: int = 1000) -> list[CommentData]:
+    def get_comments(self, url: str, max_comments: int = 5000) -> list[CommentData]:
         video_id = self.extract_video_id(url)
         if not video_id:
             raise VideoNotFoundError("Invalid YouTube URL")
