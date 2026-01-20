@@ -24,6 +24,7 @@ AI-powered YouTube comment analysis tool with sentiment detection, topic modelin
 - Node.js 20+
 - pnpm
 - Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 
 ### Frontend Setup
 
@@ -40,17 +41,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ### Backend Setup
 
 ```bash
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# or
-.venv\Scripts\activate  # Windows
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies and create venv
+uv sync
 
 # Run API server
-pnpm api
+uv run uvicorn api.main:app --reload --port 8000
 ```
 
 API available at [http://localhost:8000](http://localhost:8000)
@@ -121,8 +119,7 @@ vidinsight/
 ## Running Tests
 
 ```bash
-source .venv/bin/activate
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ## License
