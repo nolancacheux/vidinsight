@@ -27,6 +27,7 @@ eggs/
 parts/
 sdist/
 var/
+docs/
 .claude/
 .mcp.json
 _bmad/
