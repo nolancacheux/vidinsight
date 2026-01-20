@@ -6,6 +6,12 @@ from .youtube import (
     VideoMetadata,
     CommentData,
 )
+from .sentiment import (
+    SentimentAnalyzer,
+    SentimentResult,
+    SentimentCategory,
+    get_sentiment_analyzer,
+)
 
 __all__ = [
     "YouTubeExtractor",
@@ -14,4 +20,8 @@ __all__ = [
     "VideoNotFoundError",
     "VideoMetadata",
     "CommentData",
+    "SentimentAnalyzer",
+    "SentimentResult",
+    "SentimentCategory",
+    "get_sentiment_analyzer",
 ]
