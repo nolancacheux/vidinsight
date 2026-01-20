@@ -116,11 +116,42 @@ vidinsight/
 }
 ```
 
-## Running Tests
+## Development
+
+### Running Tests
 
 ```bash
+# Run all tests
 uv run pytest tests/ -v
+
+# Run with coverage report
+uv run pytest tests/ -v --cov=api --cov-report=term-missing
+
+# Run specific test file
+uv run pytest tests/test_youtube.py -v
 ```
+
+### Code Quality
+
+```bash
+# Lint check
+uv run ruff check api/ tests/
+
+# Auto-fix lint issues
+uv run ruff check api/ tests/ --fix
+
+# Format code
+uv run ruff format api/ tests/
+
+# Check formatting (CI mode)
+uv run ruff format --check api/ tests/
+```
+
+### CI Pipeline
+
+GitHub Actions runs on every push/PR:
+- **Lint**: Ruff check + format verification
+- **Test**: pytest with 75% coverage threshold
 
 ## License
 
