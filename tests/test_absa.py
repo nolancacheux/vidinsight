@@ -3,16 +3,15 @@ Tests for Aspect-Based Sentiment Analysis service.
 """
 
 import pytest
+
 from api.services.absa import (
     ABSAAnalyzer,
     ABSAResult,
-    AspectResult,
     Aspect,
+    AspectResult,
     AspectSentiment,
-    ABSAAggregation,
     aggregate_absa_results,
     get_absa_analyzer,
-    ASPECT_THRESHOLD,
 )
 
 
@@ -50,8 +49,7 @@ class TestABSAAnalyzer:
     def test_analyze_single_content_aspect(self, analyzer):
         """Test content aspect detection."""
         result = analyzer.analyze_single(
-            "The tutorial was very informative and well explained. "
-            "I learned a lot about the topic!"
+            "The tutorial was very informative and well explained. I learned a lot about the topic!"
         )
         content_result = result.aspects[Aspect.CONTENT]
         # Content should be detected with some confidence
@@ -60,8 +58,7 @@ class TestABSAAnalyzer:
     def test_analyze_single_audio_aspect(self, analyzer):
         """Test audio aspect detection."""
         result = analyzer.analyze_single(
-            "The audio quality is terrible! I can barely hear anything. "
-            "Please fix your microphone."
+            "The audio quality is terrible! I can barely hear anything. Please fix your microphone."
         )
         audio_result = result.aspects[Aspect.AUDIO]
         # Audio should be mentioned
@@ -158,17 +155,31 @@ class TestAggregation:
         results = [
             ABSAResult(
                 text="Test1",
-                aspects={a: AspectResult(aspect=a, mentioned=True, confidence=0.5,
-                                         sentiment=AspectSentiment.POSITIVE, sentiment_score=0.8)
-                         for a in Aspect},
+                aspects={
+                    a: AspectResult(
+                        aspect=a,
+                        mentioned=True,
+                        confidence=0.5,
+                        sentiment=AspectSentiment.POSITIVE,
+                        sentiment_score=0.8,
+                    )
+                    for a in Aspect
+                },
                 overall_sentiment=AspectSentiment.POSITIVE,
                 overall_score=0.8,
             ),
             ABSAResult(
                 text="Test2",
-                aspects={a: AspectResult(aspect=a, mentioned=True, confidence=0.5,
-                                         sentiment=AspectSentiment.NEGATIVE, sentiment_score=0.8)
-                         for a in Aspect},
+                aspects={
+                    a: AspectResult(
+                        aspect=a,
+                        mentioned=True,
+                        confidence=0.5,
+                        sentiment=AspectSentiment.NEGATIVE,
+                        sentiment_score=0.8,
+                    )
+                    for a in Aspect
+                },
                 overall_sentiment=AspectSentiment.NEGATIVE,
                 overall_score=0.8,
             ),
@@ -183,9 +194,16 @@ class TestAggregation:
         results = [
             ABSAResult(
                 text=f"Test{i}",
-                aspects={a: AspectResult(aspect=a, mentioned=True, confidence=0.5,
-                                         sentiment=AspectSentiment.POSITIVE, sentiment_score=0.8)
-                         for a in Aspect},
+                aspects={
+                    a: AspectResult(
+                        aspect=a,
+                        mentioned=True,
+                        confidence=0.5,
+                        sentiment=AspectSentiment.POSITIVE,
+                        sentiment_score=0.8,
+                    )
+                    for a in Aspect
+                },
                 overall_sentiment=AspectSentiment.POSITIVE,
                 overall_score=0.8,
             )
@@ -201,11 +219,17 @@ class TestAggregation:
                 text="Content focused comment",
                 aspects={
                     Aspect.CONTENT: AspectResult(
-                        aspect=Aspect.CONTENT, mentioned=True,
-                        confidence=0.9, sentiment=AspectSentiment.POSITIVE, sentiment_score=0.8
+                        aspect=Aspect.CONTENT,
+                        mentioned=True,
+                        confidence=0.9,
+                        sentiment=AspectSentiment.POSITIVE,
+                        sentiment_score=0.8,
                     ),
-                    **{a: AspectResult(aspect=a, mentioned=False, confidence=0.1)
-                       for a in Aspect if a != Aspect.CONTENT},
+                    **{
+                        a: AspectResult(aspect=a, mentioned=False, confidence=0.1)
+                        for a in Aspect
+                        if a != Aspect.CONTENT
+                    },
                 },
                 overall_sentiment=AspectSentiment.POSITIVE,
                 overall_score=0.8,
@@ -242,9 +266,7 @@ class TestFallbackBehavior:
         analyzer = ABSAAnalyzer()
         analyzer._ml_available = False
 
-        result = analyzer.analyze_single(
-            "The audio quality is great but the editing is poor."
-        )
+        result = analyzer.analyze_single("The audio quality is great but the editing is poor.")
         # Should detect audio and production aspects via keywords
         assert result.aspects[Aspect.AUDIO].confidence > 0
         assert result.aspects[Aspect.PRODUCTION].confidence > 0

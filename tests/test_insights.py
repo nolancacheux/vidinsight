@@ -2,8 +2,9 @@
 Tests for Insights service.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 from api.services.absa import (
     ABSAAggregation,
@@ -12,17 +13,15 @@ from api.services.absa import (
     AspectSentiment,
 )
 from api.services.insights import (
+    HealthBreakdown,
+    InsightReport,
     Recommendation,
     RecommendationPriority,
     RecommendationType,
-    HealthBreakdown,
-    InsightReport,
-    generate_recommendations,
+    analyze_trends,
     calculate_health_breakdown,
     generate_insight_report,
-    analyze_trends,
-    NEGATIVE_THRESHOLD,
-    POSITIVE_THRESHOLD,
+    generate_recommendations,
 )
 
 
@@ -138,7 +137,8 @@ class TestGenerateRecommendations:
         """Test that critical/high recommendations have action items."""
         recs = generate_recommendations(sample_aggregation)
         critical_or_high = [
-            r for r in recs
+            r
+            for r in recs
             if r.priority in (RecommendationPriority.CRITICAL, RecommendationPriority.HIGH)
         ]
         for rec in critical_or_high:
