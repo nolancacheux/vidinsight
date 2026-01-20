@@ -149,18 +149,60 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
 
     yield format_sse(ProgressEvent(
         stage=AnalysisStage.ANALYZING_SENTIMENT,
-        message="Analyzing sentiment...",
-        progress=50,
+        message="Loading BERT model...",
+        progress=45,
     ))
+
+    import time
+    analysis_start = time.perf_counter()
 
     analyzer = get_sentiment_analyzer()
     texts = [c.text for c in comments_data]
-    sentiment_results = analyzer.analyze_batch(texts)
+
+    # Stream ML progress with real metrics
+    sentiment_results = []
+    total_tokens = 0
+    last_update = 0
+
+    for result, batch_progress in analyzer.analyze_batch_with_progress(texts):
+        sentiment_results.append(result)
+        total_tokens += batch_progress.tokens_in_batch // max(1, batch_progress.processed - last_update)
+
+        # Send progress update every 10 comments or on batch completion
+        if batch_progress.processed % 10 == 0 or batch_progress.processed == batch_progress.total:
+            elapsed = time.perf_counter() - analysis_start
+            speed = batch_progress.processed / elapsed if elapsed > 0 else 0
+            progress_pct = 45 + int((batch_progress.processed / batch_progress.total) * 20)
+
+            yield format_sse(ProgressEvent(
+                stage=AnalysisStage.ANALYZING_SENTIMENT,
+                message=f"Analyzed {batch_progress.processed}/{batch_progress.total} comments",
+                progress=progress_pct,
+                data={
+                    "ml_batch": batch_progress.batch_num,
+                    "ml_total_batches": batch_progress.total_batches,
+                    "ml_processed": batch_progress.processed,
+                    "ml_total": batch_progress.total,
+                    "ml_speed": round(speed, 1),
+                    "ml_tokens": total_tokens,
+                    "ml_batch_time_ms": round(batch_progress.batch_time_ms, 1),
+                    "ml_elapsed_seconds": round(elapsed, 2),
+                },
+            ))
+            await asyncio.sleep(0.01)  # Small yield to allow SSE to flush
+            last_update = batch_progress.processed
+
+    analysis_time = time.perf_counter() - analysis_start
 
     yield format_sse(ProgressEvent(
         stage=AnalysisStage.ANALYZING_SENTIMENT,
-        message="Sentiment analysis complete",
+        message=f"Sentiment analysis complete in {analysis_time:.1f}s",
         progress=65,
+        data={
+            "ml_processing_time_seconds": round(analysis_time, 2),
+            "ml_total_tokens": total_tokens,
+            "ml_comments_per_second": round(len(texts) / analysis_time, 1) if analysis_time > 0 else 0,
+        },
     ))
 
     db.query(Comment).filter(Comment.video_id == video.id).delete()
@@ -466,3 +508,22 @@ async def get_latest_analysis_for_video(video_id: str, db: Session = Depends(get
         return None
 
     return await get_analysis_result(analysis.id, db)
+
+
+@router.delete("/history/{analysis_id}")
+async def delete_analysis(analysis_id: int, db: Session = Depends(get_db)):
+    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    # Delete related topic comments and topics
+    topics = db.query(Topic).filter(Topic.analysis_id == analysis_id).all()
+    for topic in topics:
+        db.query(TopicComment).filter(TopicComment.topic_id == topic.id).delete()
+    db.query(Topic).filter(Topic.analysis_id == analysis_id).delete()
+
+    # Delete the analysis
+    db.delete(analysis)
+    db.commit()
+
+    return {"status": "deleted", "id": analysis_id}
