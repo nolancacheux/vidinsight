@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 
+from api.config import settings
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -137,9 +139,8 @@ def simple_sentiment(text: str) -> SentimentCategory:
 
 
 class SentimentAnalyzer:
-    MODEL_NAME = "nlptown/bert-base-multilingual-uncased-sentiment"
-
     def __init__(self):
+        self.MODEL_NAME = settings.SENTIMENT_MODEL
         self._model = None
         self._tokenizer = None
         self._device = None
@@ -222,10 +223,14 @@ class SentimentAnalyzer:
     def analyze_batch(
         self,
         texts: list[str],
-        batch_size: int = 32,
-        max_length: int = 512,
+        batch_size: int | None = None,
+        max_length: int | None = None,
     ) -> list[SentimentResult]:
         """Analyze texts and return results (non-streaming version)."""
+        if batch_size is None:
+            batch_size = settings.SENTIMENT_BATCH_SIZE
+        if max_length is None:
+            max_length = settings.SENTIMENT_MAX_LENGTH
         results = []
         for result, _ in self.analyze_batch_with_progress(texts, batch_size, max_length):
             results.append(result)
@@ -234,11 +239,16 @@ class SentimentAnalyzer:
     def analyze_batch_with_progress(
         self,
         texts: list[str],
-        batch_size: int = 32,
-        max_length: int = 512,
+        batch_size: int | None = None,
+        max_length: int | None = None,
     ):
         """Generator that yields (SentimentResult, BatchProgress) tuples."""
         import time
+
+        if batch_size is None:
+            batch_size = settings.SENTIMENT_BATCH_SIZE
+        if max_length is None:
+            max_length = settings.SENTIMENT_MAX_LENGTH
 
         total_batches = (len(texts) + batch_size - 1) // batch_size
         logger.info(f"[Sentiment] Starting: {len(texts)} comments, {total_batches} batches")
