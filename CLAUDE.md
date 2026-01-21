@@ -51,6 +51,7 @@ Portfolio-quality YouTube comment analysis tool with ML-powered sentiment detect
 - **Backend**: FastAPI + yt-dlp + Transformers (BERT sentiment, BART zero-shot)
 - **Database**: SQLite
 - **Package Manager**: pnpm (frontend), uv (backend)
+- **GPU**: NVIDIA GPU with CUDA recommended for fast ML inference (works on CPU but slower)
 
 ## Running the Application
 
@@ -204,6 +205,7 @@ api/
 - **Aspects**: content, audio, production, pacing, presenter
 - **Health Score**: 0-100 overall channel health
 - **Recommendations**: Prioritized action items
+- **Performance**: GPU (CUDA) recommended - CPU is slow (~2-3 min for 100 comments)
 
 ### SSE Metrics
 - `ml_batch` / `ml_total_batches` - Current batch progress
