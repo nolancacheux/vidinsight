@@ -53,6 +53,7 @@ def hf_zero_shot_classification(
 
     try:
         # Use raw post to avoid library bug with response parsing
+        # See: https://github.com/huggingface/huggingface_hub/blob/main/docs/source/de/guides/inference.md
         response = client.post(
             json={
                 "inputs": text,
@@ -64,10 +65,15 @@ def hf_zero_shot_classification(
             model="facebook/bart-large-mnli",
         )
 
-        # Response is bytes, decode to dict
-        import json
-        result = json.loads(response)
-        logger.info(f"[HF] Raw API response: {result}")
+        # Parse JSON response - handle both bytes and response object
+        import json as json_module
+        if hasattr(response, 'json'):
+            result = response.json()
+        elif isinstance(response, bytes):
+            result = json_module.loads(response)
+        else:
+            result = response
+        logger.info(f"[HF] Zero-shot API response: {result}")
 
         # Parse response - format: {"sequence": "...", "labels": [...], "scores": [...]}
         if isinstance(result, dict) and "labels" in result and "scores" in result:
