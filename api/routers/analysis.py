@@ -318,12 +318,24 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
             float(comments_data[i].like_count + 1)
         )  # +1 to avoid zero weights
 
-        if progress.processed % 20 == 0 or progress.processed == progress.total:
+        if progress.processed % 10 == 0 or progress.processed == progress.total:
+            elapsed = time.perf_counter() - absa_start
+            speed = progress.processed / elapsed if elapsed > 0 else 0
+            progress_pct = 66 + int((progress.processed / progress.total) * 4)
+
             yield format_sse(
                 ProgressEvent(
                     stage=AnalysisStage.ANALYZING_ASPECTS,
                     message=f"Aspect analysis: {progress.processed}/{progress.total} comments",
-                    progress=66 + int((progress.processed / progress.total) * 4),
+                    progress=progress_pct,
+                    data={
+                        "absa_processed": progress.processed,
+                        "absa_total": progress.total,
+                        "absa_speed": round(speed, 1),
+                        "absa_batch": progress.batch_num,
+                        "absa_total_batches": progress.total_batches,
+                        "absa_elapsed_seconds": round(elapsed, 2),
+                    },
                 )
             )
             await asyncio.sleep(0.01)
@@ -361,6 +373,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         ("positive", positive_comments, DBSentimentType.POSITIVE),
         ("negative", negative_comments, DBSentimentType.NEGATIVE),
         ("suggestion", suggestion_comments, DBSentimentType.SUGGESTION),
+        ("neutral", neutral_comments, DBSentimentType.NEUTRAL),
     ]:
         # Lowered from 3 to 2 to allow topic extraction for smaller categories
         if len(comments_list) >= 2:
