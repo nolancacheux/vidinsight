@@ -15,8 +15,8 @@ from api.config import settings
 
 logger = logging.getLogger(__name__)
 
-# HF Inference API endpoint
-HF_API_URL = "https://api-inference.huggingface.co/models"
+# HF Inference API endpoint (router URL - new endpoint as of 2025)
+HF_API_URL = "https://router.huggingface.co/hf-inference/models"
 
 
 @lru_cache(maxsize=1)
@@ -64,8 +64,16 @@ def hf_zero_shot_classification(
         result = response.json()
         logger.debug(f"[HF] Zero-shot API response: {result}")
 
-        # Parse response - format: {"sequence": "...", "labels": [...], "scores": [...]}
-        if isinstance(result, dict) and "labels" in result and "scores" in result:
+        # Parse response - new router format: [{"label": "...", "score": ...}, ...]
+        if isinstance(result, list) and all(
+            isinstance(item, dict) and "label" in item and "score" in item
+            for item in result
+        ):
+            scores = {item["label"]: item["score"] for item in result}
+            logger.info(f"[HF] Zero-shot success: {len(scores)} labels")
+            return scores
+        # Legacy format: {"sequence": "...", "labels": [...], "scores": [...]}
+        elif isinstance(result, dict) and "labels" in result and "scores" in result:
             scores = dict(zip(result["labels"], result["scores"]))
             logger.info(f"[HF] Zero-shot success: {len(scores)} labels")
             return scores
