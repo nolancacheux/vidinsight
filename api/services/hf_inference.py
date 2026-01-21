@@ -2,12 +2,13 @@
 Hugging Face Inference API client for fast ML inference.
 
 Uses HF's free inference API to run models on their GPUs instead of local CPU.
-Requires HF_TOKEN environment variable to be set.
+Configure via HF_TOKEN and HF_ENABLED in .env file.
 """
 
 import logging
-import os
 from functools import lru_cache
+
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +22,18 @@ except ImportError:
 
 @lru_cache(maxsize=1)
 def get_hf_client() -> "InferenceClient | None":
-    """Get HF Inference client if token is configured."""
-    token = os.getenv("HF_TOKEN")
-    if not token:
+    """Get HF Inference client if token is configured and enabled."""
+    if not settings.HF_ENABLED:
+        logger.info("[HF] Hugging Face Inference API disabled (HF_ENABLED=false)")
+        return None
+    if not settings.HF_TOKEN:
         logger.warning("[HF] No HF_TOKEN found - using local models (slow)")
         return None
     if not HF_AVAILABLE:
         logger.warning("[HF] huggingface_hub not installed")
         return None
     logger.info("[HF] Using Hugging Face Inference API (fast)")
-    return InferenceClient(token=token)
+    return InferenceClient(token=settings.HF_TOKEN)
 
 
 def hf_zero_shot_classification(
