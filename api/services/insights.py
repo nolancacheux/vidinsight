@@ -9,6 +9,8 @@ Provides:
 - Health score breakdown
 """
 
+import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -21,6 +23,8 @@ from .absa import (
     Aspect,
     AspectSentiment,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RecommendationPriority(str, Enum):
@@ -287,8 +291,16 @@ def generate_recommendations(
     Returns:
         List of recommendations sorted by priority
     """
+    start_time = time.time()
+
     if max_recommendations is None:
         max_recommendations = settings.MAX_RECOMMENDATIONS
+
+    logger.info(
+        "[Insights] Generating recommendations from %d aspects",
+        len(aggregation.aspect_stats),
+    )
+
     recommendations = []
 
     for aspect in Aspect:
@@ -297,6 +309,12 @@ def generate_recommendations(
             rec = _generate_aspect_recommendations(aspect, stats)
             if rec:
                 recommendations.append(rec)
+                logger.info(
+                    "[Insights] Generated %s recommendation for %s: %s",
+                    rec.priority.value,
+                    aspect.value,
+                    rec.title,
+                )
 
     # Sort by priority (critical first)
     priority_order = {
@@ -306,6 +324,19 @@ def generate_recommendations(
         RecommendationPriority.LOW: 3,
     }
     recommendations.sort(key=lambda r: priority_order[r.priority])
+
+    # Count by priority
+    priority_counts = {}
+    for rec in recommendations:
+        priority_counts[rec.priority.value] = priority_counts.get(rec.priority.value, 0) + 1
+
+    elapsed = time.time() - start_time
+    logger.info(
+        "[Insights] Generated %d recommendations in %.2fs: %s",
+        len(recommendations[:max_recommendations]),
+        elapsed,
+        ", ".join(f"{k}={v}" for k, v in priority_counts.items()) or "none",
+    )
 
     return recommendations[:max_recommendations]
 
@@ -320,6 +351,10 @@ def calculate_health_breakdown(aggregation: ABSAAggregation) -> HealthBreakdown:
     Returns:
         HealthBreakdown with scores per aspect
     """
+    logger.info(
+        "[Insights] Calculating health breakdown for %d comments", aggregation.total_comments
+    )
+
     aspect_scores = {}
     strengths = []
     weaknesses = []
@@ -331,6 +366,14 @@ def calculate_health_breakdown(aggregation: ABSAAggregation) -> HealthBreakdown:
             score = (stats.sentiment_score + 1) * 50
             aspect_scores[aspect] = round(score, 1)
 
+            logger.info(
+                "[Insights] Aspect %s: score=%.1f, mentions=%d, sentiment=%.2f",
+                aspect.value,
+                score,
+                stats.mention_count,
+                stats.sentiment_score,
+            )
+
             if stats.sentiment_score >= POSITIVE_THRESHOLD:
                 strengths.append(aspect)
             elif stats.sentiment_score <= NEGATIVE_THRESHOLD:
@@ -340,6 +383,18 @@ def calculate_health_breakdown(aggregation: ABSAAggregation) -> HealthBreakdown:
 
     # Trend is determined by comparing to historical data (placeholder for now)
     trend = "stable"
+
+    logger.info(
+        "[Insights] Health score: %.1f/100, strengths=%d, weaknesses=%d",
+        aggregation.health_score,
+        len(strengths),
+        len(weaknesses),
+    )
+
+    if strengths:
+        logger.info("[Insights] Strengths: %s", ", ".join(s.value for s in strengths))
+    if weaknesses:
+        logger.info("[Insights] Weaknesses: %s", ", ".join(w.value for w in weaknesses))
 
     return HealthBreakdown(
         overall_score=aggregation.health_score,
@@ -417,6 +472,10 @@ def generate_insight_report(
     Returns:
         Complete InsightReport
     """
+    start_time = time.time()
+    logger.info("[Insights] === Generating insight report for video %s ===", video_id)
+    logger.info("[Insights] Input: %d comments analyzed", aggregation.total_comments)
+
     health = calculate_health_breakdown(aggregation)
     recommendations = generate_recommendations(aggregation)
     summary = generate_summary(aggregation, health, recommendations)
@@ -445,6 +504,20 @@ def generate_insight_report(
             if aggregation.aspect_stats.get(a) and aggregation.aspect_stats[a].mention_count > 0
         ),
     }
+
+    elapsed = time.time() - start_time
+    logger.info(
+        "[Insights] Report complete in %.2fs: health=%.1f, recommendations=%d",
+        elapsed,
+        health.overall_score,
+        len(recommendations),
+    )
+    logger.info(
+        "[Insights] Key metrics: positive=%.1f%%, negative=%.1f%%, aspects=%d/5",
+        key_metrics["positive_ratio"],
+        key_metrics["negative_ratio"],
+        key_metrics["aspects_covered"],
+    )
 
     return InsightReport(
         video_id=video_id,
