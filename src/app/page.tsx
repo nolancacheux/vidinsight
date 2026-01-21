@@ -48,7 +48,7 @@ export default function Home() {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedSentimentTab, setSelectedSentimentTab] = useState<string>("all");
 
-  // Load history on mount
+  // Load history on mount and when analysis state changes
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -61,7 +61,7 @@ export default function Home() {
       }
     };
     loadHistory();
-  }, [result]); // Refresh when new result comes in
+  }, [result, isAnalyzing]); // Refresh when result comes in or analysis stops (including cancel)
 
   const handleValidUrl = useCallback(
     (url: string) => {
