@@ -2,13 +2,17 @@ import type { AnalysisResult, AnalysisHistoryItem, ProgressEvent } from "@/types
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export async function* analyzeVideo(url: string): AsyncGenerator<ProgressEvent> {
+export async function* analyzeVideo(
+  url: string,
+  signal?: AbortSignal
+): AsyncGenerator<ProgressEvent> {
   const response = await fetch(`${API_BASE}/api/analysis/analyze`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ url }),
+    signal,
   });
 
   if (!response.ok) {
@@ -23,25 +27,29 @@ export async function* analyzeVideo(url: string): AsyncGenerator<ProgressEvent> 
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n\n");
-    buffer = lines.pop() || "";
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || "";
 
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const jsonStr = line.slice(6);
-        try {
-          const event = JSON.parse(jsonStr) as ProgressEvent;
-          yield event;
-        } catch {
-          // Skip invalid JSON
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const jsonStr = line.slice(6);
+          try {
+            const event = JSON.parse(jsonStr) as ProgressEvent;
+            yield event;
+          } catch {
+            // Skip invalid JSON
+          }
         }
       }
     }
+  } finally {
+    reader.releaseLock();
   }
 }
 

@@ -38,6 +38,7 @@ export default function Home() {
     commentsAnalyzed,
     mlMetrics,
     startAnalysis,
+    cancelAnalysis,
     reset,
   } = useAnalysis();
 
@@ -218,6 +219,7 @@ export default function Home() {
                   videoTitle={videoTitle || undefined}
                   commentsFound={commentsFound || undefined}
                   commentsAnalyzed={commentsAnalyzed || undefined}
+                  onCancel={cancelAnalysis}
                 />
               </div>
 

@@ -31,6 +31,7 @@ interface UseAnalysisState {
 
 interface UseAnalysisReturn extends UseAnalysisState {
   startAnalysis: (url: string) => Promise<void>;
+  cancelAnalysis: () => void;
   reset: () => void;
 }
 
@@ -62,8 +63,26 @@ export function useAnalysis(): UseAnalysisReturn {
 
   const startTimeRef = useRef<number | null>(null);
   const commentsFoundRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cancelAnalysis = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setState((prev) => ({
+      ...prev,
+      isAnalyzing: false,
+      stage: null,
+      message: "Analysis cancelled",
+    }));
+  }, []);
 
   const reset = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     startTimeRef.current = null;
     commentsFoundRef.current = 0;
     setState({
@@ -83,6 +102,12 @@ export function useAnalysis(): UseAnalysisReturn {
   }, []);
 
   const startAnalysis = useCallback(async (url: string) => {
+    // Cancel any existing analysis
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     const now = Date.now();
     startTimeRef.current = now;
     commentsFoundRef.current = 0;
@@ -105,9 +130,8 @@ export function useAnalysis(): UseAnalysisReturn {
     try {
       let analysisId: number | null = null;
       let lastCommentsAnalyzed = 0;
-      let simulatedBatch = 0;
 
-      for await (const event of analyzeVideo(url)) {
+      for await (const event of analyzeVideo(url, abortControllerRef.current.signal)) {
         const elapsed = (Date.now() - (startTimeRef.current || now)) / 1000;
 
         // Extract data from the event
@@ -203,6 +227,10 @@ export function useAnalysis(): UseAnalysisReturn {
         }));
       }
     } catch (error) {
+      // Don't show error for intentional cancellation
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
       setState((prev) => ({
         ...prev,
         isAnalyzing: false,
@@ -214,6 +242,7 @@ export function useAnalysis(): UseAnalysisReturn {
   return {
     ...state,
     startAnalysis,
+    cancelAnalysis,
     reset,
   };
 }
