@@ -51,15 +51,31 @@ def hf_zero_shot_classification(
         return None
 
     try:
+        logger.debug(f"[HF] Zero-shot request: text={text[:50]}..., labels={labels}")
         result = client.zero_shot_classification(
             text,
             labels,
             multi_label=multi_label,
         )
-        # Result format: {"labels": [...], "scores": [...]}
-        return dict(zip(result["labels"], result["scores"]))
+        logger.debug(f"[HF] Zero-shot response type: {type(result)}, value: {result}")
+
+        # Handle different response formats from HF API
+        if isinstance(result, list):
+            # Format: [{"label": "...", "score": ...}, ...]
+            scores = {item["label"]: item["score"] for item in result}
+            logger.info(f"[HF] Zero-shot success (list format): {len(scores)} labels")
+            return scores
+        elif isinstance(result, dict) and "labels" in result:
+            # Format: {"labels": [...], "scores": [...]}
+            scores = dict(zip(result["labels"], result["scores"]))
+            logger.info(f"[HF] Zero-shot success (dict format): {len(scores)} labels")
+            return scores
+        else:
+            logger.warning(f"[HF] Unexpected response format: {type(result)}")
+            return None
     except Exception as e:
         logger.warning(f"[HF] Zero-shot API error: {e}")
+        logger.debug(f"[HF] Error details: {type(e).__name__}: {e}")
         return None
 
 
