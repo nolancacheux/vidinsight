@@ -1,7 +1,10 @@
+import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 try:
     import torch
@@ -155,9 +158,11 @@ class SentimentAnalyzer:
         if not self._ml_available:
             return None
         if self._model is None:
+            logger.info(f"[Sentiment] Loading model: {self.MODEL_NAME}")
             self._model = AutoModelForSequenceClassification.from_pretrained(self.MODEL_NAME)
             self._model.to(self.device)
             self._model.eval()
+            logger.info(f"[Sentiment] Model loaded on device: {self.device}")
         return self._model
 
     @property
@@ -236,6 +241,7 @@ class SentimentAnalyzer:
         import time
 
         total_batches = (len(texts) + batch_size - 1) // batch_size
+        logger.info(f"[Sentiment] Starting: {len(texts)} comments, {total_batches} batches")
 
         if not self._ml_available:
             for i, text in enumerate(texts):

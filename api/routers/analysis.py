@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -41,6 +42,8 @@ from api.services import (
     get_topic_modeler,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
@@ -49,6 +52,7 @@ def format_sse(event: ProgressEvent) -> str:
 
 
 async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
+    logger.info(f"[Analysis] Starting analysis for URL: {url}")
     extractor = YouTubeExtractor()
 
     yield format_sse(
@@ -496,6 +500,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
 
         topic_objects.append((topic, cs))
 
+    logger.info(f"[Analysis] Complete! ID={analysis.id}, {len(topic_objects)} topics")
     yield format_sse(
         ProgressEvent(
             stage=AnalysisStage.COMPLETE,

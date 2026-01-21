@@ -1,7 +1,10 @@
+import logging
 import re
 from collections import Counter
 from dataclasses import dataclass, field
 from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 try:
     from bertopic import BERTopic
@@ -203,6 +206,7 @@ def simple_topic_clustering(
     """Simple topic extraction using keyword clustering."""
     # Lowered from 3 to 2 to allow smaller topics
     if len(texts) < 2:
+        logger.info(f"[Topics] Not enough texts for topic clustering: {len(texts)} (need 2+)")
         return []
 
     keywords = extract_keywords_simple(texts, top_n=20)
@@ -244,6 +248,7 @@ def simple_topic_clustering(
         )
 
     results.sort(key=lambda x: x.total_engagement, reverse=True)
+    logger.info(f"[Topics] Extracted {len(results[:max_topics])} topics from {len(texts)} texts")
     return results[:max_topics]
 
 

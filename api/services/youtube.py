@@ -1,8 +1,11 @@
 import json
+import logging
 import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -74,6 +77,7 @@ class YouTubeExtractor:
         if not video_id:
             raise VideoNotFoundError("Invalid YouTube URL")
 
+        logger.info(f"[YouTube] Fetching metadata for video: {video_id}")
         try:
             result = subprocess.run(
                 [
@@ -102,7 +106,7 @@ class YouTubeExtractor:
                 except ValueError:
                     pass
 
-            return VideoMetadata(
+            metadata = VideoMetadata(
                 id=video_id,
                 title=data.get("title", "Unknown"),
                 channel_id=data.get("channel_id", ""),
@@ -113,6 +117,8 @@ class YouTubeExtractor:
                 ),
                 published_at=published_at,
             )
+            logger.info(f"[YouTube] Got metadata: '{metadata.title}' by {metadata.channel_title}")
+            return metadata
 
         except subprocess.TimeoutExpired:
             raise YouTubeExtractionError("Timeout while fetching video metadata")
@@ -124,6 +130,7 @@ class YouTubeExtractor:
         if not video_id:
             raise VideoNotFoundError("Invalid YouTube URL")
 
+        logger.info(f"[YouTube] Extracting up to {max_comments} comments for video: {video_id}")
         try:
             result = subprocess.run(
                 [
@@ -175,6 +182,7 @@ class YouTubeExtractor:
                     )
                 )
 
+            logger.info(f"[YouTube] Extracted {len(comments)} comments")
             return comments
 
         except subprocess.TimeoutExpired:
@@ -187,6 +195,7 @@ class YouTubeExtractor:
         if not query.strip():
             return []
 
+        logger.info(f"[YouTube] Searching for: '{query}' (max {max_results} results)")
         try:
             result = subprocess.run(
                 [
@@ -238,7 +247,9 @@ class YouTubeExtractor:
                 except json.JSONDecodeError:
                     continue
 
+            logger.info(f"[YouTube] Search found {len(results)} results")
             return results
 
         except subprocess.TimeoutExpired:
+            logger.warning("[YouTube] Search timed out after 30s")
             raise YouTubeExtractionError("Timeout while searching videos")

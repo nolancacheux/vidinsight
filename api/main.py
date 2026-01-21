@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,11 +7,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.db import init_db
 from api.routers import analysis_router
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Starting AI-Video-Comment-Analyzer API...")
     init_db()
+    logger.info("Database initialized")
     yield
+    logger.info("Shutting down API...")
 
 
 app = FastAPI(

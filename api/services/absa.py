@@ -12,9 +12,12 @@ Uses zero-shot classification (BART-large-MNLI) for aspect detection
 and multilingual BERT for sentiment analysis.
 """
 
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 try:
     import torch
@@ -126,11 +129,13 @@ class ABSAAnalyzer:
         if not self._ml_available:
             return None
         if self._zero_shot is None:
+            logger.info(f"[ABSA] Loading zero-shot model: {self.ZERO_SHOT_MODEL}")
             self._zero_shot = pipeline(
                 "zero-shot-classification",
                 model=self.ZERO_SHOT_MODEL,
                 device=self.device,
             )
+            logger.info(f"[ABSA] Zero-shot model loaded on device: {self.device}")
         return self._zero_shot
 
     @property
@@ -381,6 +386,7 @@ class ABSAAnalyzer:
         import time
 
         total_batches = (len(texts) + batch_size - 1) // batch_size
+        logger.info(f"[ABSA] Starting: {len(texts)} comments, {total_batches} batches")
         processed = 0
 
         for batch_idx, i in enumerate(range(0, len(texts), batch_size)):
