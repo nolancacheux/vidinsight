@@ -45,60 +45,41 @@ def hf_zero_shot_classification(
     Run zero-shot classification via HF Inference API.
 
     Returns dict of {label: score} or None if HF not available.
+    Uses raw POST request to avoid huggingface_hub library bug.
     """
     client = get_hf_client()
     if not client:
         return None
 
     try:
-        logger.debug(f"[HF] Zero-shot request: text={text[:50]}..., labels={labels}")
-        result = client.zero_shot_classification(
-            text,
-            labels,
-            multi_label=multi_label,
+        # Use raw post to avoid library bug with response parsing
+        response = client.post(
+            json={
+                "inputs": text,
+                "parameters": {
+                    "candidate_labels": labels,
+                    "multi_label": multi_label,
+                },
+            },
+            model="facebook/bart-large-mnli",
         )
 
-        # Log full response structure for debugging
-        logger.info(f"[HF] Response type={type(result).__name__}, content={result}")
+        # Response is bytes, decode to dict
+        import json
+        result = json.loads(response)
+        logger.info(f"[HF] Raw API response: {result}")
 
-        # Handle different response formats from HF API
-        if isinstance(result, list):
-            # Check what's inside the list
-            if len(result) > 0:
-                first_item = result[0]
-                logger.info(f"[HF] List item type={type(first_item).__name__}, content={first_item}")
-
-                if isinstance(first_item, dict) and "label" in first_item:
-                    # Format: [{"label": "...", "score": ...}, ...]
-                    scores = {item["label"]: item["score"] for item in result}
-                    logger.info(f"[HF] Zero-shot success (list of dicts): {len(scores)} labels")
-                    return scores
-                else:
-                    logger.warning(f"[HF] Unexpected list item format: {first_item}")
-                    return None
-            else:
-                logger.warning("[HF] Empty list response")
-                return None
-
-        elif hasattr(result, "labels") and hasattr(result, "scores"):
-            # Object with labels and scores attributes
-            scores = dict(zip(result.labels, result.scores))
-            logger.info(f"[HF] Zero-shot success (object format): {len(scores)} labels")
-            return scores
-
-        elif isinstance(result, dict) and "labels" in result:
-            # Format: {"labels": [...], "scores": [...]}
+        # Parse response - format: {"sequence": "...", "labels": [...], "scores": [...]}
+        if isinstance(result, dict) and "labels" in result and "scores" in result:
             scores = dict(zip(result["labels"], result["scores"]))
-            logger.info(f"[HF] Zero-shot success (dict format): {len(scores)} labels")
+            logger.info(f"[HF] Zero-shot success: {len(scores)} labels classified")
             return scores
-
         else:
-            logger.warning(f"[HF] Unexpected response format: {type(result)}, dir={dir(result)}")
+            logger.warning(f"[HF] Unexpected response format: {result}")
             return None
+
     except Exception as e:
         logger.warning(f"[HF] Zero-shot API error: {e}")
-        import traceback
-        logger.warning(f"[HF] Traceback: {traceback.format_exc()}")
         return None
 
 
