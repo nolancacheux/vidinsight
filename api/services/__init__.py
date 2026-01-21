@@ -38,6 +38,7 @@ from .topics import (
 from .youtube import (
     CommentData,
     CommentsDisabledError,
+    SearchResultData,
     VideoMetadata,
     VideoNotFoundError,
     YouTubeExtractionError,
@@ -51,6 +52,7 @@ __all__ = [
     "VideoNotFoundError",
     "VideoMetadata",
     "CommentData",
+    "SearchResultData",
     "SentimentAnalyzer",
     "SentimentResult",
     "SentimentCategory",

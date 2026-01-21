@@ -125,6 +125,20 @@ class ErrorResponse(BaseModel):
     detail: str | None = None
 
 
+# Search Models
+
+
+class SearchResult(BaseModel):
+    """YouTube video search result."""
+
+    id: str
+    title: str
+    channel: str
+    thumbnail: str
+    duration: str | None = None
+    view_count: int | None = None
+
+
 # ABSA (Aspect-Based Sentiment Analysis) Models
 
 

@@ -1,4 +1,4 @@
-import type { AnalysisResult, AnalysisHistoryItem, ProgressEvent } from "@/types";
+import type { AnalysisResult, AnalysisHistoryItem, ProgressEvent, SearchResult } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -113,4 +113,40 @@ export function isValidYouTubeUrl(url: string): boolean {
 
 export function getVideoThumbnail(videoId: string): string {
   return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+}
+
+export async function searchVideos(
+  query: string,
+  limit = 5,
+  signal?: AbortSignal
+): Promise<SearchResult[]> {
+  const response = await fetch(
+    `${API_BASE}/api/analysis/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+    { signal }
+  );
+  if (!response.ok) {
+    if (response.status === 400) {
+      return [];
+    }
+    throw new Error(`Search failed: ${response.status}`);
+  }
+  const data = await response.json();
+  // Map snake_case from API to camelCase for frontend
+  return data.map((r: Record<string, unknown>) => ({
+    id: r.id,
+    title: r.title,
+    channel: r.channel,
+    thumbnail: r.thumbnail,
+    duration: r.duration,
+    viewCount: r.view_count,
+  }));
+}
+
+export function isUrl(text: string): boolean {
+  return (
+    text.startsWith("http://") ||
+    text.startsWith("https://") ||
+    text.includes("youtube.com") ||
+    text.includes("youtu.be")
+  );
 }

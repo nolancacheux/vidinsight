@@ -27,6 +27,16 @@ class CommentData:
     parent_id: str | None = None
 
 
+@dataclass
+class SearchResultData:
+    id: str
+    title: str
+    channel: str
+    thumbnail: str
+    duration: str | None
+    view_count: int | None
+
+
 class YouTubeExtractionError(Exception):
     pass
 
@@ -171,3 +181,64 @@ class YouTubeExtractor:
             raise YouTubeExtractionError("Timeout while fetching comments")
         except json.JSONDecodeError:
             raise YouTubeExtractionError("Failed to parse comments data")
+
+    def search_videos(self, query: str, max_results: int = 5) -> list[SearchResultData]:
+        """Search YouTube videos using yt-dlp's ytsearch feature."""
+        if not query.strip():
+            return []
+
+        try:
+            result = subprocess.run(
+                [
+                    "yt-dlp",
+                    f"ytsearch{max_results}:{query}",
+                    "--dump-json",
+                    "--no-download",
+                    "--no-warnings",
+                    "--flat-playlist",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                raise YouTubeExtractionError(f"Search failed: {result.stderr}")
+
+            results = []
+            for line in result.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                    video_id = data.get("id", "")
+                    duration_secs = data.get("duration")
+                    duration_str = None
+                    if duration_secs:
+                        minutes, seconds = divmod(int(duration_secs), 60)
+                        hours, minutes = divmod(minutes, 60)
+                        if hours > 0:
+                            duration_str = f"{hours}:{minutes:02d}:{seconds:02d}"
+                        else:
+                            duration_str = f"{minutes}:{seconds:02d}"
+
+                    results.append(
+                        SearchResultData(
+                            id=video_id,
+                            title=data.get("title", "Unknown"),
+                            channel=data.get("channel", data.get("uploader", "Unknown")),
+                            thumbnail=data.get(
+                                "thumbnail",
+                                f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                            ),
+                            duration=duration_str,
+                            view_count=data.get("view_count"),
+                        )
+                    )
+                except json.JSONDecodeError:
+                    continue
+
+            return results
+
+        except subprocess.TimeoutExpired:
+            raise YouTubeExtractionError("Timeout while searching videos")

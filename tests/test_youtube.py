@@ -12,6 +12,7 @@ import pytest
 from api.services.youtube import (
     CommentData,
     CommentsDisabledError,
+    SearchResultData,
     VideoMetadata,
     VideoNotFoundError,
     YouTubeExtractionError,
@@ -411,6 +412,124 @@ class TestYouTubeExtractor:
         comments = extractor.get_comments("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         assert comments[0].like_count == 0
 
+    # Search tests
+    @patch("subprocess.run")
+    def test_search_videos_success(self, mock_run, extractor):
+        """Test successful video search."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "id": "video1",
+                        "title": "Python Tutorial",
+                        "channel": "PyChannel",
+                        "thumbnail": "https://example.com/thumb1.jpg",
+                        "duration": 600,
+                        "view_count": 1000000,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "id": "video2",
+                        "title": "Python Advanced",
+                        "uploader": "OtherChannel",
+                        "thumbnail": "https://example.com/thumb2.jpg",
+                        "duration": 3700,
+                        "view_count": 50000,
+                    }
+                ),
+            ]
+        )
+        mock_run.return_value = mock_result
+
+        results = extractor.search_videos("python tutorial", max_results=5)
+
+        assert len(results) == 2
+        assert results[0].id == "video1"
+        assert results[0].title == "Python Tutorial"
+        assert results[0].channel == "PyChannel"
+        assert results[0].duration == "10:00"
+        assert results[0].view_count == 1000000
+        # Test uploader fallback for channel
+        assert results[1].channel == "OtherChannel"
+        # Test hour duration formatting
+        assert results[1].duration == "1:01:40"
+
+    @patch("subprocess.run")
+    def test_search_videos_empty_query(self, mock_run, extractor):
+        """Test search with empty query returns empty list."""
+        results = extractor.search_videos("   ")
+        assert results == []
+        mock_run.assert_not_called()
+
+    @patch("subprocess.run")
+    def test_search_videos_no_results(self, mock_run, extractor):
+        """Test search with no results."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = ""
+        mock_run.return_value = mock_result
+
+        results = extractor.search_videos("xyznonexistentquery123")
+        assert results == []
+
+    @patch("subprocess.run")
+    def test_search_videos_timeout(self, mock_run, extractor):
+        """Test search timeout handling."""
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="yt-dlp", timeout=30)
+
+        with pytest.raises(YouTubeExtractionError, match="Timeout"):
+            extractor.search_videos("python tutorial")
+
+    @patch("subprocess.run")
+    def test_search_videos_error(self, mock_run, extractor):
+        """Test search error handling."""
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "Search failed"
+        mock_run.return_value = mock_result
+
+        with pytest.raises(YouTubeExtractionError, match="Search failed"):
+            extractor.search_videos("python tutorial")
+
+    @patch("subprocess.run")
+    def test_search_videos_invalid_json_line(self, mock_run, extractor):
+        """Test search skips invalid JSON lines."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "\n".join(
+            [
+                json.dumps({"id": "video1", "title": "Valid Video"}),
+                "not valid json",
+                json.dumps({"id": "video2", "title": "Another Valid Video"}),
+            ]
+        )
+        mock_run.return_value = mock_result
+
+        results = extractor.search_videos("test query")
+        assert len(results) == 2
+
+    @patch("subprocess.run")
+    def test_search_videos_missing_duration(self, mock_run, extractor):
+        """Test search with missing duration."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = json.dumps(
+            {
+                "id": "video1",
+                "title": "Test Video",
+                "channel": "TestChannel",
+            }
+        )
+        mock_run.return_value = mock_result
+
+        results = extractor.search_videos("test")
+        assert len(results) == 1
+        assert results[0].duration is None
+        assert results[0].view_count is None
+
 
 class TestDataClasses:
     """Tests for data classes."""
@@ -456,6 +575,35 @@ class TestDataClasses:
             parent_id="comment123",
         )
         assert comment.parent_id == "comment123"
+
+    def test_search_result_data_creation(self):
+        """Test SearchResultData creation."""
+        result = SearchResultData(
+            id="video123",
+            title="Test Video",
+            channel="Test Channel",
+            thumbnail="https://example.com/thumb.jpg",
+            duration="10:30",
+            view_count=1000,
+        )
+        assert result.id == "video123"
+        assert result.title == "Test Video"
+        assert result.channel == "Test Channel"
+        assert result.duration == "10:30"
+        assert result.view_count == 1000
+
+    def test_search_result_data_optional_fields(self):
+        """Test SearchResultData with None optional fields."""
+        result = SearchResultData(
+            id="video123",
+            title="Test Video",
+            channel="Test Channel",
+            thumbnail="https://example.com/thumb.jpg",
+            duration=None,
+            view_count=None,
+        )
+        assert result.duration is None
+        assert result.view_count is None
 
 
 class TestExceptions:

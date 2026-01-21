@@ -154,3 +154,12 @@ export interface AnalysisHistoryItem {
   total_comments: number;
   analyzed_at: string;
 }
+
+export interface SearchResult {
+  id: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+  duration?: string;
+  viewCount?: number;
+}

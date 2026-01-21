@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { isValidYouTubeUrl, extractVideoId, getVideoThumbnail } from "@/lib/api";
+import { isValidYouTubeUrl, extractVideoId, getVideoThumbnail, searchVideos, isUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { SearchResults } from "@/components/search-results";
+import type { SearchResult } from "@/types";
 
 interface UrlInputProps {
   onValidUrl: (url: string) => void;
@@ -15,6 +17,76 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
   const [url, setUrl] = useState("");
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
+
+  // Search state
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".search-container")) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  const performSearch = useCallback(async (query: string) => {
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setIsSearching(true);
+    setShowResults(true);
+
+    try {
+      const results = await searchVideos(query, 5, controller.signal);
+      setSearchResults(results);
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleSearchResult = useCallback(
+    (result: SearchResult) => {
+      const youtubeUrl = `https://www.youtube.com/watch?v=${result.id}`;
+      setUrl(youtubeUrl);
+      setIsValid(true);
+      setVideoId(result.id);
+      setShowResults(false);
+      setSearchResults([]);
+      onValidUrl(youtubeUrl);
+    },
+    [onValidUrl]
+  );
 
   const validateAndTrigger = useCallback(
     (value: string) => {
@@ -31,6 +103,8 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
       if (valid) {
         const id = extractVideoId(trimmed);
         setVideoId(id);
+        setShowResults(false);
+        setSearchResults([]);
         onValidUrl(trimmed);
       } else {
         setVideoId(null);
@@ -52,39 +126,86 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
       const value = e.target.value;
       setUrl(value);
 
-      if (isValidYouTubeUrl(value)) {
-        validateAndTrigger(value);
-      } else if (!value.trim()) {
+      // Clear previous debounce
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+
+      // Check if it's a URL
+      if (isUrl(value)) {
+        // URL mode - validate immediately
+        if (isValidYouTubeUrl(value)) {
+          validateAndTrigger(value);
+        } else if (!value.trim()) {
+          setIsValid(null);
+          setVideoId(null);
+          setShowResults(false);
+          setSearchResults([]);
+        } else {
+          setIsValid(false);
+          setVideoId(null);
+          setShowResults(false);
+          setSearchResults([]);
+        }
+      } else {
+        // Search mode
         setIsValid(null);
         setVideoId(null);
-      } else {
-        setIsValid(false);
-        setVideoId(null);
+
+        const trimmed = value.trim();
+        if (trimmed.length >= 3) {
+          // Debounce search by 500ms
+          debounceTimeoutRef.current = setTimeout(() => {
+            performSearch(trimmed);
+          }, 500);
+        } else {
+          setShowResults(false);
+          setSearchResults([]);
+        }
       }
     },
-    [validateAndTrigger]
+    [validateAndTrigger, performSearch]
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        validateAndTrigger(url);
+
+        // If showing search results and user presses enter, select first result
+        if (showResults && searchResults.length > 0) {
+          handleSearchResult(searchResults[0]);
+        } else {
+          validateAndTrigger(url);
+        }
+      } else if (e.key === "Escape") {
+        setShowResults(false);
       }
     },
-    [url, validateAndTrigger]
+    [url, validateAndTrigger, showResults, searchResults, handleSearchResult]
   );
+
+  const handleFocus = useCallback(() => {
+    // Show results again if we have them and input is not a URL
+    if (searchResults.length > 0 && !isUrl(url)) {
+      setShowResults(true);
+    }
+  }, [searchResults, url]);
+
+  const isSearchMode = url.trim().length >= 3 && !isUrl(url);
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="relative">
+      <div className="relative search-container">
         <Input
+          ref={inputRef}
           type="text"
-          placeholder="Paste a YouTube URL to analyze comments..."
+          placeholder="Paste a YouTube URL or search for videos..."
           value={url}
           onChange={handleChange}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
           disabled={disabled}
           className={cn(
             "h-14 text-lg px-6 pr-12 transition-colors",
@@ -93,7 +214,29 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
           )}
         />
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
-          {isValid === true && (
+          {isSearching && (
+            <svg
+              className="animate-spin h-5 w-5 text-muted-foreground"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          )}
+          {!isSearching && isValid === true && (
             <svg
               className="w-6 h-6 text-emerald-500"
               fill="none"
@@ -108,7 +251,7 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
               />
             </svg>
           )}
-          {isValid === false && (
+          {!isSearching && isValid === false && (
             <svg
               className="w-6 h-6 text-rose-500"
               fill="none"
@@ -123,10 +266,33 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
               />
             </svg>
           )}
+          {!isSearching && isValid === null && isSearchMode && (
+            <svg
+              className="w-5 h-5 text-muted-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          )}
         </div>
+
+        {showResults && (
+          <SearchResults
+            results={searchResults}
+            isLoading={isSearching}
+            onSelect={handleSearchResult}
+          />
+        )}
       </div>
 
-      {isValid === false && url.trim() && (
+      {isValid === false && url.trim() && isUrl(url) && (
         <p className="text-sm text-rose-500">
           Please enter a valid YouTube URL (youtube.com/watch, youtu.be, or youtube.com/shorts)
         </p>

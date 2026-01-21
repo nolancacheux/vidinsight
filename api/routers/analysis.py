@@ -22,6 +22,7 @@ from api.models import (
     PriorityLevel,
     ProgressEvent,
     RecommendationResponse,
+    SearchResult,
     SentimentSummary,
     SentimentType,
     TopicResponse,
@@ -735,3 +736,30 @@ async def delete_analysis(analysis_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "deleted", "id": analysis_id}
+
+
+@router.get("/search", response_model=list[SearchResult])
+async def search_videos(q: str, limit: int = 5):
+    """Search YouTube videos by query."""
+    if not q or len(q.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
+
+    if limit < 1 or limit > 10:
+        limit = 5
+
+    extractor = YouTubeExtractor()
+    try:
+        results = extractor.search_videos(q.strip(), limit)
+        return [
+            SearchResult(
+                id=r.id,
+                title=r.title,
+                channel=r.channel,
+                thumbnail=r.thumbnail,
+                duration=r.duration,
+                view_count=r.view_count,
+            )
+            for r in results
+        ]
+    except YouTubeExtractionError as e:
+        raise HTTPException(status_code=500, detail=str(e))
