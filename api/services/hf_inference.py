@@ -5,35 +5,31 @@ Uses HF's free inference API to run models on their GPUs instead of local CPU.
 Configure via HF_TOKEN and HF_ENABLED in .env file.
 """
 
+import json
 import logging
 from functools import lru_cache
+
+import requests
 
 from api.config import settings
 
 logger = logging.getLogger(__name__)
 
-try:
-    from huggingface_hub import InferenceClient
-
-    HF_AVAILABLE = True
-except ImportError:
-    HF_AVAILABLE = False
+# HF Inference API endpoint
+HF_API_URL = "https://api-inference.huggingface.co/models"
 
 
 @lru_cache(maxsize=1)
-def get_hf_client() -> "InferenceClient | None":
-    """Get HF Inference client if token is configured and enabled."""
+def _get_hf_headers() -> dict[str, str] | None:
+    """Get HF API headers if token is configured and enabled."""
     if not settings.HF_ENABLED:
         logger.info("[HF] Hugging Face Inference API disabled (HF_ENABLED=false)")
         return None
     if not settings.HF_TOKEN:
         logger.warning("[HF] No HF_TOKEN found - using local models (slow)")
         return None
-    if not HF_AVAILABLE:
-        logger.warning("[HF] huggingface_hub not installed")
-        return None
     logger.info("[HF] Using Hugging Face Inference API (fast)")
-    return InferenceClient(token=settings.HF_TOKEN)
+    return {"Authorization": f"Bearer {settings.HF_TOKEN}"}
 
 
 def hf_zero_shot_classification(
@@ -45,45 +41,44 @@ def hf_zero_shot_classification(
     Run zero-shot classification via HF Inference API.
 
     Returns dict of {label: score} or None if HF not available.
-    Uses raw POST request to avoid huggingface_hub library bug.
+    Uses direct HTTP request to avoid huggingface_hub library bug in v0.36.0.
     """
-    client = get_hf_client()
-    if not client:
+    headers = _get_hf_headers()
+    if not headers:
         return None
 
     try:
-        # Use raw post to avoid library bug with response parsing
-        # See: https://github.com/huggingface/huggingface_hub/blob/main/docs/source/de/guides/inference.md
-        response = client.post(
-            json={
-                "inputs": text,
-                "parameters": {
-                    "candidate_labels": labels,
-                    "multi_label": multi_label,
-                },
+        # Direct API call to HF Inference API
+        url = f"{HF_API_URL}/{settings.ZERO_SHOT_MODEL}"
+        payload = {
+            "inputs": text,
+            "parameters": {
+                "candidate_labels": labels,
+                "multi_label": multi_label,
             },
-            model="facebook/bart-large-mnli",
-        )
+        }
 
-        # Parse JSON response - handle both bytes and response object
-        import json as json_module
-        if hasattr(response, 'json'):
-            result = response.json()
-        elif isinstance(response, bytes):
-            result = json_module.loads(response)
-        else:
-            result = response
-        logger.info(f"[HF] Zero-shot API response: {result}")
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+
+        result = response.json()
+        logger.debug(f"[HF] Zero-shot API response: {result}")
 
         # Parse response - format: {"sequence": "...", "labels": [...], "scores": [...]}
         if isinstance(result, dict) and "labels" in result and "scores" in result:
             scores = dict(zip(result["labels"], result["scores"]))
-            logger.info(f"[HF] Zero-shot success: {len(scores)} labels classified")
+            logger.info(f"[HF] Zero-shot success: {len(scores)} labels")
             return scores
         else:
             logger.warning(f"[HF] Unexpected response format: {result}")
             return None
 
+    except requests.exceptions.Timeout:
+        logger.warning("[HF] Zero-shot API timeout")
+        return None
+    except requests.exceptions.HTTPError as e:
+        logger.warning(f"[HF] Zero-shot API HTTP error: {e}")
+        return None
     except Exception as e:
         logger.warning(f"[HF] Zero-shot API error: {e}")
         return None
@@ -95,15 +90,22 @@ def hf_text_classification(text: str, model: str) -> dict | None:
 
     Returns classification result or None if HF not available.
     """
-    client = get_hf_client()
-    if not client:
+    headers = _get_hf_headers()
+    if not headers:
         return None
 
     try:
-        result = client.text_classification(text, model=model)
-        # Result format: [{"label": "...", "score": ...}, ...]
-        if result and len(result) > 0:
-            return result[0]
+        url = f"{HF_API_URL}/{model}"
+        response = requests.post(url, headers=headers, json={"inputs": text}, timeout=30)
+        response.raise_for_status()
+
+        result = response.json()
+        # Result format: [[{"label": "...", "score": ...}, ...]]
+        if result and isinstance(result, list) and len(result) > 0:
+            if isinstance(result[0], list) and len(result[0]) > 0:
+                return result[0][0]
+            elif isinstance(result[0], dict):
+                return result[0]
         return None
     except Exception as e:
         logger.warning(f"[HF] Text classification API error: {e}")
@@ -112,4 +114,4 @@ def hf_text_classification(text: str, model: str) -> dict | None:
 
 def is_hf_available() -> bool:
     """Check if HF Inference API is available and configured."""
-    return get_hf_client() is not None
+    return _get_hf_headers() is not None
