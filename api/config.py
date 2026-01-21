@@ -56,7 +56,9 @@ class Settings:
 
     # === API Server ===
     API_PORT: int = get_int("API_PORT", 8000)
-    CORS_ORIGINS: list[str] = get_list("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
+    CORS_ORIGINS: list[str] = get_list(
+        "CORS_ORIGINS", "http://localhost:3000,http://localhost:3001"
+    )
 
     # === YouTube Extraction ===
     YOUTUBE_MAX_COMMENTS: int = get_int("YOUTUBE_MAX_COMMENTS", 100)
@@ -66,7 +68,9 @@ class Settings:
     YOUTUBE_SEARCH_TIMEOUT: int = get_int("YOUTUBE_SEARCH_TIMEOUT", 30)
 
     # === ML Models ===
-    SENTIMENT_MODEL: str = get_str("SENTIMENT_MODEL", "nlptown/bert-base-multilingual-uncased-sentiment")
+    SENTIMENT_MODEL: str = get_str(
+        "SENTIMENT_MODEL", "nlptown/bert-base-multilingual-uncased-sentiment"
+    )
     ZERO_SHOT_MODEL: str = get_str("ZERO_SHOT_MODEL", "facebook/bart-large-mnli")
     EMBEDDING_MODEL: str = get_str("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
