@@ -196,23 +196,12 @@ export function Sidebar({
                   key={item.id}
                   className={cn(
                     "group relative flex items-center rounded-lg cursor-pointer transition-colors hover:bg-slate-50",
-                    collapsed ? "p-1 justify-center" : "p-2 gap-2",
+                    collapsed ? "p-1 justify-center" : "p-2 gap-2 pr-8",
                     selectedId === item.id && "bg-indigo-50 ring-1 ring-indigo-200"
                   )}
                   onClick={() => onSelectHistory(item)}
                   title={collapsed ? item.video_title : undefined}
                 >
-                  {/* Delete button - top right corner */}
-                  {onDeleteHistory && !collapsed && (
-                    <button
-                      onClick={(e) => handleDelete(e, item.id)}
-                      className="absolute -top-1 -right-1 p-1 rounded-full bg-white border border-slate-200 shadow-sm opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:border-red-300 transition-all z-10"
-                      title="Delete analysis"
-                    >
-                      <X className="h-3 w-3 text-slate-500 hover:text-red-500" />
-                    </button>
-                  )}
-
                   {/* Thumbnail */}
                   {item.video_thumbnail ? (
                     <img
@@ -245,6 +234,17 @@ export function Sidebar({
                         </span>
                       </div>
                     </div>
+                  )}
+
+                  {/* Delete button - always visible */}
+                  {onDeleteHistory && !collapsed && (
+                    <button
+                      onClick={(e) => handleDelete(e, item.id)}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-100 transition-colors"
+                      title="Delete analysis"
+                    >
+                      <X className="h-4 w-4 text-slate-400 hover:text-red-500" />
+                    </button>
                   )}
                 </div>
               ))}
