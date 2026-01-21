@@ -5,6 +5,8 @@ import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 
+from api.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,7 +91,7 @@ class YouTubeExtractor:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=settings.YOUTUBE_METADATA_TIMEOUT,
             )
 
             if result.returncode != 0:
@@ -125,7 +127,9 @@ class YouTubeExtractor:
         except json.JSONDecodeError:
             raise YouTubeExtractionError("Failed to parse video metadata")
 
-    def get_comments(self, url: str, max_comments: int = 100) -> list[CommentData]:
+    def get_comments(self, url: str, max_comments: int | None = None) -> list[CommentData]:
+        if max_comments is None:
+            max_comments = settings.YOUTUBE_MAX_COMMENTS
         video_id = self.extract_video_id(url)
         if not video_id:
             raise VideoNotFoundError("Invalid YouTube URL")
@@ -145,7 +149,7 @@ class YouTubeExtractor:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=settings.YOUTUBE_COMMENTS_TIMEOUT,
             )
 
             if result.returncode != 0:
@@ -190,8 +194,10 @@ class YouTubeExtractor:
         except json.JSONDecodeError:
             raise YouTubeExtractionError("Failed to parse comments data")
 
-    def search_videos(self, query: str, max_results: int = 5) -> list[SearchResultData]:
+    def search_videos(self, query: str, max_results: int | None = None) -> list[SearchResultData]:
         """Search YouTube videos using yt-dlp's ytsearch feature."""
+        if max_results is None:
+            max_results = settings.YOUTUBE_SEARCH_MAX_RESULTS
         if not query.strip():
             return []
 
@@ -208,7 +214,7 @@ class YouTubeExtractor:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=settings.YOUTUBE_SEARCH_TIMEOUT,
             )
 
             if result.returncode != 0:
