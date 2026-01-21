@@ -320,6 +320,7 @@ class ABSAAnalyzer:
 
         # Get aspect scores - try HF API first, then local ML, then fallback
         aspect_scores = None
+        aspect_method = None
         labels = list(ASPECT_HYPOTHESES.values())
         label_to_aspect = {v: k for k, v in ASPECT_HYPOTHESES.items()}
 
@@ -331,9 +332,11 @@ class ABSAAnalyzer:
                     label_to_aspect[label]: score
                     for label, score in hf_result.items()
                 }
+                aspect_method = "hf_api"
 
         # Fall back to local ML model (slow on CPU)
         if aspect_scores is None and self._ml_available and self.zero_shot:
+            logger.debug("[ABSA] HF API unavailable, using local ML model")
             result = self.zero_shot(
                 truncated_text,
                 labels,
@@ -344,10 +347,15 @@ class ABSAAnalyzer:
                 label_to_aspect[label]: score
                 for label, score in zip(result["labels"], result["scores"])
             }
+            aspect_method = "local_ml"
 
         # Fall back to keyword detection (fast, less accurate)
         if aspect_scores is None:
+            logger.debug("[ABSA] ML unavailable, using keyword fallback")
             aspect_scores = self._fallback_aspects(text)
+            aspect_method = "keyword"
+
+        logger.debug(f"[ABSA] Aspect detection method: {aspect_method}")
 
         # Build aspect results
         aspects = {}
@@ -407,8 +415,18 @@ class ABSAAnalyzer:
             max_length = settings.ABSA_MAX_LENGTH
 
         total_batches = (len(texts) + batch_size - 1) // batch_size
-        logger.info(f"[ABSA] Starting: {len(texts)} comments, {total_batches} batches")
+
+        # Log which method will be used
+        if is_hf_available():
+            method = "HF Inference API (fast)"
+        elif self._ml_available:
+            method = "Local ML model (slow on CPU)"
+        else:
+            method = "Keyword fallback (fast, less accurate)"
+        logger.info(f"[ABSA] Starting: {len(texts)} comments, {total_batches} batches, method={method}")
+
         processed = 0
+        total_start = time.perf_counter()
 
         for batch_idx, i in enumerate(range(0, len(texts), batch_size)):
             batch_start = time.perf_counter()
@@ -422,6 +440,12 @@ class ABSAAnalyzer:
                 batch_results.append(result)
 
             batch_time_ms = (time.perf_counter() - batch_start) * 1000
+            logger.info(
+                f"[ABSA] Batch {batch_idx + 1}/{total_batches}: "
+                f"{len(batch_texts)} comments in {batch_time_ms:.0f}ms "
+                f"({len(batch_texts) / (batch_time_ms / 1000):.1f} comments/sec)"
+            )
+
             progress = ABSABatchProgress(
                 batch_num=batch_idx + 1,
                 total_batches=total_batches,
@@ -433,6 +457,12 @@ class ABSAAnalyzer:
             # Yield all results from batch with final progress
             for result in batch_results:
                 yield result, progress
+
+        total_time = time.perf_counter() - total_start
+        logger.info(
+            f"[ABSA] Complete: {len(texts)} comments in {total_time:.1f}s "
+            f"({len(texts) / total_time:.1f} comments/sec)"
+        )
 
 
 @dataclass
