@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from api.config import settings
+
 from .absa import (
     ABSAAggregation,
     AggregatedAspectStats,
@@ -75,11 +77,11 @@ class InsightReport:
     summary: str
 
 
-# Thresholds for recommendation generation
-NEGATIVE_THRESHOLD = -0.2  # Sentiment score below this triggers improvement
-POSITIVE_THRESHOLD = 0.3  # Sentiment score above this is a strength
-MENTION_THRESHOLD = 10  # Minimum mentions to consider aspect significant
-CRITICAL_NEGATIVE = -0.5  # Very negative sentiment triggers critical priority
+# Thresholds for recommendation generation (loaded from config)
+NEGATIVE_THRESHOLD = settings.SENTIMENT_NEGATIVE_THRESHOLD
+POSITIVE_THRESHOLD = settings.SENTIMENT_POSITIVE_THRESHOLD
+MENTION_THRESHOLD = settings.ASPECT_MENTION_THRESHOLD
+CRITICAL_NEGATIVE = settings.SENTIMENT_CRITICAL_THRESHOLD
 
 
 def _generate_aspect_recommendations(
@@ -273,7 +275,7 @@ def _create_investigation_recommendation(
 
 def generate_recommendations(
     aggregation: ABSAAggregation,
-    max_recommendations: int = 5,
+    max_recommendations: int | None = None,
 ) -> list[Recommendation]:
     """
     Generate prioritized recommendations from ABSA aggregation.
@@ -285,6 +287,8 @@ def generate_recommendations(
     Returns:
         List of recommendations sorted by priority
     """
+    if max_recommendations is None:
+        max_recommendations = settings.MAX_RECOMMENDATIONS
     recommendations = []
 
     for aspect in Aspect:
