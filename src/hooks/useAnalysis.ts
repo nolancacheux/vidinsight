@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { AnalysisResult, ProgressEvent, AnalysisStage } from "@/types";
 import { analyzeVideo, getAnalysisResult } from "@/lib/api";
 
@@ -64,6 +64,21 @@ export function useAnalysis(): UseAnalysisReturn {
   const startTimeRef = useRef<number | null>(null);
   const commentsFoundRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Warn user before leaving page during analysis
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (state.isAnalyzing) {
+        e.preventDefault();
+        // Modern browsers require returnValue to be set
+        e.returnValue = "Analysis in progress. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [state.isAnalyzing]);
 
   const cancelAnalysis = useCallback(() => {
     if (abortControllerRef.current) {
