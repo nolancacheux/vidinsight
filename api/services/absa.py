@@ -13,6 +13,7 @@ and multilingual BERT for sentiment analysis.
 """
 
 import logging
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
@@ -25,6 +26,9 @@ from api.services.hf_inference import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Module-level tracking for caching
+_model_loaded_at: float | None = None
 
 try:
     import torch
@@ -117,6 +121,11 @@ class ABSAAnalyzer:
         self._device = None
         self._ml_available = ML_AVAILABLE and use_ml
         self._use_ml = use_ml
+        logger.info(
+            "[ABSA] ABSAAnalyzer initialized, ML available: %s, use_ml: %s",
+            self._ml_available,
+            self._use_ml,
+        )
 
     @property
     def device(self) -> int:
@@ -125,21 +134,35 @@ class ABSAAnalyzer:
             return -1
         if self._device is None:
             self._device = 0 if torch.cuda.is_available() else -1
+            device_name = "GPU" if self._device >= 0 else "CPU"
+            logger.info("[ABSA] Using device: %s (index=%d)", device_name, self._device)
         return self._device
 
     @property
     def zero_shot(self):
         """Lazy-load zero-shot classification pipeline."""
+        global _model_loaded_at
         if not self._ml_available:
             return None
         if self._zero_shot is None:
-            logger.info(f"[ABSA] Loading zero-shot model: {self.ZERO_SHOT_MODEL}")
+            logger.info("[ABSA] Loading zero-shot model: %s", self.ZERO_SHOT_MODEL)
+            start = time.time()
             self._zero_shot = pipeline(
                 "zero-shot-classification",
                 model=self.ZERO_SHOT_MODEL,
                 device=self.device,
             )
-            logger.info(f"[ABSA] Zero-shot model loaded on device: {self.device}")
+            _model_loaded_at = time.time()
+            load_time = _model_loaded_at - start
+            logger.info(
+                "[ABSA] Zero-shot model loaded in %.2fs on device=%d",
+                load_time,
+                self.device,
+            )
+        else:
+            if _model_loaded_at:
+                age = time.time() - _model_loaded_at
+                logger.info("[ABSA] Using cached zero-shot model (loaded %.0fs ago)", age)
         return self._zero_shot
 
     @property
@@ -148,11 +171,14 @@ class ABSAAnalyzer:
         if not self._ml_available:
             return None
         if self._sentiment is None:
+            logger.info("[ABSA] Loading sentiment model: %s", self.SENTIMENT_MODEL)
+            start = time.time()
             self._sentiment = pipeline(
                 "sentiment-analysis",
                 model=self.SENTIMENT_MODEL,
                 device=self.device,
             )
+            logger.info("[ABSA] Sentiment model loaded in %.2fs", time.time() - start)
         return self._sentiment
 
     def _map_star_to_sentiment(self, label: str) -> tuple[AspectSentiment, float]:
@@ -484,8 +510,6 @@ class ABSAAnalyzer:
         zero-shot classification is more computationally expensive.
         Yields progress only at batch boundaries to reduce overhead.
         """
-        import time
-
         if batch_size is None:
             batch_size = settings.ABSA_BATCH_SIZE
         if max_length is None:
@@ -502,11 +526,23 @@ class ABSAAnalyzer:
         else:
             method = "Keyword fallback (fast, less accurate)"
         logger.info(
-            f"[ABSA] Starting: {len(texts)} comments, {total_batches} batches, method={method}"
+            "[ABSA] Starting: %d comments, %d batches, batch_size=%d, method=%s",
+            len(texts),
+            total_batches,
+            batch_size,
+            method,
         )
 
         processed = 0
         total_start = time.perf_counter()
+
+        # Track aspect statistics across all batches
+        aspect_counts = dict.fromkeys(Aspect, 0)
+        sentiment_counts = {
+            AspectSentiment.POSITIVE: 0,
+            AspectSentiment.NEGATIVE: 0,
+            AspectSentiment.NEUTRAL: 0,
+        }
 
         for batch_idx, i in enumerate(range(0, len(texts), batch_size)):
             batch_start = time.perf_counter()
@@ -523,10 +559,30 @@ class ABSAAnalyzer:
 
             processed += len(batch_texts)
             batch_time_ms = (time.perf_counter() - batch_start) * 1000
+
+            # Track batch-level aspect mentions
+            batch_aspects = dict.fromkeys(Aspect, 0)
+            for result in batch_results:
+                if result.overall_sentiment:
+                    sentiment_counts[result.overall_sentiment] += 1
+                for aspect, ar in result.aspects.items():
+                    if ar.mentioned:
+                        aspect_counts[aspect] += 1
+                        batch_aspects[aspect] += 1
+
+            # Log batch statistics
+            comments_per_sec = len(batch_texts) / (batch_time_ms / 1000) if batch_time_ms > 0 else 0
+            aspects_str = ", ".join(
+                [f"{a.value[:3]}={batch_aspects[a]}" for a in Aspect if batch_aspects[a] > 0]
+            )
             logger.info(
-                f"[ABSA] Batch {batch_idx + 1}/{total_batches}: "
-                f"{len(batch_texts)} comments in {batch_time_ms:.0f}ms "
-                f"({len(batch_texts) / (batch_time_ms / 1000):.1f} comments/sec)"
+                "[ABSA] Batch %d/%d: %d comments in %.0fms (%.1f/sec), aspects: %s",
+                batch_idx + 1,
+                total_batches,
+                len(batch_texts),
+                batch_time_ms,
+                comments_per_sec,
+                aspects_str or "none detected",
             )
 
             progress = ABSABatchProgress(
@@ -542,9 +598,26 @@ class ABSAAnalyzer:
                 yield result, progress
 
         total_time = time.perf_counter() - total_start
+        speed = len(texts) / total_time if total_time > 0 else 0
+
         logger.info(
-            f"[ABSA] Complete: {len(texts)} comments in {total_time:.1f}s "
-            f"({len(texts) / total_time:.1f} comments/sec)"
+            "[ABSA] Complete: %d comments in %.1fs (%.1f/sec)",
+            len(texts),
+            total_time,
+            speed,
+        )
+        logger.info(
+            "[ABSA] Aspect summary: most mentioned=%s (%d), least mentioned=%s (%d)",
+            max(aspect_counts, key=aspect_counts.get).value,
+            max(aspect_counts.values()),
+            min(aspect_counts, key=aspect_counts.get).value,
+            min(aspect_counts.values()),
+        )
+        logger.info(
+            "[ABSA] Sentiment by aspect: positive=%d, negative=%d, neutral=%d",
+            sentiment_counts[AspectSentiment.POSITIVE],
+            sentiment_counts[AspectSentiment.NEGATIVE],
+            sentiment_counts[AspectSentiment.NEUTRAL],
         )
 
 
