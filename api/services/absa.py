@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
 
+from api.config import settings
 from api.services.hf_inference import hf_zero_shot_classification, is_hf_available
 
 logger = logging.getLogger(__name__)
@@ -57,9 +58,7 @@ ASPECT_HYPOTHESES = {
     Aspect.PRESENTER: "presenter, personality, delivery style, or charisma",
 }
 
-# Confidence threshold for aspect detection
-# Lowered from 0.25 to ensure aspects are detected even with keyword fallback
-ASPECT_THRESHOLD = 0.2
+# Confidence threshold for aspect detection (loaded from config)
 
 
 @dataclass
@@ -106,10 +105,9 @@ class ABSAAnalyzer:
     ML-based analysis (much slower on CPU).
     """
 
-    ZERO_SHOT_MODEL = "facebook/bart-large-mnli"
-    SENTIMENT_MODEL = "nlptown/bert-base-multilingual-uncased-sentiment"
-
     def __init__(self, use_ml: bool = True):
+        self.ZERO_SHOT_MODEL = settings.ZERO_SHOT_MODEL
+        self.SENTIMENT_MODEL = settings.SENTIMENT_MODEL
         self._zero_shot = None
         self._sentiment = None
         self._device = None
@@ -355,7 +353,7 @@ class ABSAAnalyzer:
         aspects = {}
         for aspect in Aspect:
             score = aspect_scores.get(aspect, 0.0)
-            mentioned = score >= ASPECT_THRESHOLD
+            mentioned = score >= settings.ASPECT_DETECTION_THRESHOLD
 
             aspects[aspect] = AspectResult(
                 aspect=aspect,
@@ -375,10 +373,14 @@ class ABSAAnalyzer:
     def analyze_batch(
         self,
         texts: list[str],
-        batch_size: int = 16,
-        max_length: int = 512,
+        batch_size: int | None = None,
+        max_length: int | None = None,
     ) -> list[ABSAResult]:
         """Analyze multiple comments and return results."""
+        if batch_size is None:
+            batch_size = settings.ABSA_BATCH_SIZE
+        if max_length is None:
+            max_length = settings.ABSA_MAX_LENGTH
         results = []
         for result, _ in self.analyze_batch_with_progress(texts, batch_size, max_length):
             results.append(result)
@@ -387,8 +389,8 @@ class ABSAAnalyzer:
     def analyze_batch_with_progress(
         self,
         texts: list[str],
-        batch_size: int = 16,
-        max_length: int = 512,
+        batch_size: int | None = None,
+        max_length: int | None = None,
     ):
         """
         Generator that yields (ABSAResult, ABSABatchProgress) tuples.
@@ -398,6 +400,11 @@ class ABSAAnalyzer:
         Yields progress only at batch boundaries to reduce overhead.
         """
         import time
+
+        if batch_size is None:
+            batch_size = settings.ABSA_BATCH_SIZE
+        if max_length is None:
+            max_length = settings.ABSA_MAX_LENGTH
 
         total_batches = (len(texts) + batch_size - 1) // batch_size
         logger.info(f"[ABSA] Starting: {len(texts)} comments, {total_batches} batches")
