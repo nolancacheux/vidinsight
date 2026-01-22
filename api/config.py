@@ -51,6 +51,11 @@ class Settings:
     HF_TOKEN: str = get_str("HF_TOKEN")
     HF_ENABLED: bool = get_bool("HF_ENABLED", True)
 
+    # === Ollama (Local LLM) ===
+    OLLAMA_URL: str = get_str("OLLAMA_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = get_str("OLLAMA_MODEL", "llama3.2:3b")
+    OLLAMA_ENABLED: bool = get_bool("OLLAMA_ENABLED", True)
+
     # === Database ===
     DATABASE_URL: str = get_str("DATABASE_URL", "sqlite:///./ai-video-comment-analyzer.db")
 

@@ -85,7 +85,8 @@ class Analysis(Base):
     negative_engagement = Column(Integer, default=0)
     suggestion_engagement = Column(Integer, default=0)
     recommendations = Column(JSON, default=list)
-    absa_data = Column(JSON)  # Stores ABSA aggregation and insights
+    absa_data = Column(JSON)  # Stores ABSA aggregation and insights (legacy)
+    summaries_data = Column(JSON)  # Stores AI-generated summaries
     analyzed_at = Column(DateTime, default=datetime.utcnow)
 
     video = relationship("Video", back_populates="analyses")
@@ -98,13 +99,14 @@ class Topic(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     analysis_id = Column(Integer, ForeignKey("analyses.id"), nullable=False)
     name = Column(String, nullable=False)
+    phrase = Column(String)  # Human-readable phrase from BERTopic
     sentiment_category = Column(Enum(SentimentType))
     mention_count = Column(Integer, default=0)
     total_engagement = Column(Integer, default=0)
     priority = Column(Enum(PriorityLevel))
     priority_score = Column(Float, default=0.0)
     keywords = Column(JSON, default=list)
-    recommendation = Column(Text)
+    comment_ids = Column(JSON, default=list)  # IDs of comments in this topic
 
     analysis = relationship("Analysis", back_populates="topics")
     comment_associations = relationship(
