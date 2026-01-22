@@ -23,8 +23,8 @@ const COLORS = {
 };
 
 const LABELS = {
-  positive: "Love",
-  negative: "Dislike",
+  positive: "Positive",
+  negative: "Negative",
   suggestion: "Suggestions",
   neutral: "Neutral",
 };

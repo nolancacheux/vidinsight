@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { Topic, Comment, SentimentType, SentimentSummaryText } from "@/types";
 import { Heart, ThumbsDown, Lightbulb, Sparkles, ChevronDown, ChevronUp, ThumbsUp, Percent, Clock } from "lucide-react";
@@ -97,10 +97,31 @@ export function SentimentSection({
 }: SentimentSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("likes");
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const config = sentimentConfig[sentiment];
   const pillConfig = topicPillConfig[sentiment];
   const sentimentTopics = topics.filter(t => t.sentiment_category === sentiment);
+
+  const summaryText = summary?.summary?.trim() || "";
+  const summaryPreview = useMemo(() => {
+    if (!summaryText) {
+      return "";
+    }
+    const sentences = (summaryText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    if (sentences.length > 2) {
+      return sentences.slice(0, 2).join(" ");
+    }
+    if (summaryText.length > 240) {
+      const truncated = summaryText.slice(0, 240).trim();
+      const lastSpace = truncated.lastIndexOf(" ");
+      return lastSpace > 120 ? truncated.slice(0, lastSpace) : truncated;
+    }
+    return summaryText;
+  }, [summaryText]);
+  const isSummaryTruncated = summaryText.length > 0 && summaryPreview.length < summaryText.length;
 
   // Sort comments based on selected criteria
   const sortedComments = useMemo(() => {
@@ -124,6 +145,10 @@ export function SentimentSection({
   }, [comments, sortBy]);
 
   const displayComments = expanded ? sortedComments : sortedComments.slice(0, maxComments);
+
+  useEffect(() => {
+    setSummaryExpanded(false);
+  }, [summaryText]);
 
   if (comments.length === 0) {
     return null;
@@ -157,15 +182,26 @@ export function SentimentSection({
       {/* AI Summary */}
       {summary ? (
         <div className="px-5 py-4 border-b border-stone-100">
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-3">
             <Sparkles className="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" />
-            <div>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-stone-500">
+                <span>Summary</span>
+                <span className="h-3 w-px bg-stone-200" />
+                <span>Based on {summary.comment_count} comments</span>
+              </div>
               <p className="text-sm text-stone-700 leading-relaxed">
-                {summary.summary}
+                {summaryExpanded || !isSummaryTruncated ? summaryText : summaryPreview}
+                {!summaryExpanded && isSummaryTruncated ? "..." : ""}
               </p>
-              <p className="text-xs text-stone-400 mt-2">
-                AI-generated summary based on {summary.comment_count} comments
-              </p>
+              {isSummaryTruncated && (
+                <button
+                  onClick={() => setSummaryExpanded((prev) => !prev)}
+                  className="text-xs font-medium text-stone-500 hover:text-stone-700 transition-colors"
+                >
+                  {summaryExpanded ? "Show less" : "Read more"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -173,7 +209,7 @@ export function SentimentSection({
         <div className="px-5 py-3 border-b border-stone-100 bg-stone-50/50">
           <div className="flex items-center gap-2 text-xs text-stone-500">
             <Sparkles className="h-3.5 w-3.5 text-stone-400" />
-            <span>AI summary unavailable (Ollama not running)</span>
+            <span>Summary unavailable. Ollama is not running.</span>
           </div>
         </div>
       )}

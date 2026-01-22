@@ -17,6 +17,7 @@ dependencies = [
     "yt-dlp>=2024.0.0",
     "huggingface-hub>=0.36.0",
     "python-dotenv>=1.2.1",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]

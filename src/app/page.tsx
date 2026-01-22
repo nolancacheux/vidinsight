@@ -17,6 +17,7 @@ import { ProgressTerminal } from "@/components/analysis/progress-terminal";
 import { TopicRanking } from "@/components/results/topic-ranking";
 import { SentimentSection } from "@/components/results/sentiment-summary";
 import { TopicSlideOver } from "@/components/results/topic-slide-over";
+import { ResultsOverview } from "@/components/results/results-overview";
 import { UrlInput } from "@/components/url-input";
 import { ErrorDisplay } from "@/components/error-display";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -148,6 +149,11 @@ export default function Home() {
 
     return { positive, negative, suggestion, neutral };
   }, [allComments]);
+
+  const totalForPercent = Math.max(displayResult?.total_comments || 0, 1);
+  const formatShare = (count: number) => (
+    `${((count / totalForPercent) * 100).toFixed(0)}% of comments`
+  );
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#FAFAFA] flex">
@@ -287,40 +293,47 @@ export default function Home() {
 
               {/* Right: Main Content */}
               <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                <ResultsOverview
+                  sentiment={displayResult.sentiment}
+                  totalComments={displayResult.total_comments}
+                  topics={displayResult.topics}
+                  className="fade-up stagger-1 flex-shrink-0"
+                />
+
                 {/* Stats Row */}
-                <StatsGrid className="fade-up stagger-1 flex-shrink-0">
+                <StatsGrid className="fade-up stagger-2 flex-shrink-0">
                   <StatCard
-                    label="Love"
+                    label="Positive"
                     value={displayResult.sentiment.positive_count}
-                    subValue={`${((displayResult.sentiment.positive_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    subValue={formatShare(displayResult.sentiment.positive_count)}
                     color="love"
                     icon={<Heart className="h-5 w-5" />}
                   />
                   <StatCard
-                    label="Dislike"
+                    label="Negative"
                     value={displayResult.sentiment.negative_count}
-                    subValue={`${((displayResult.sentiment.negative_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    subValue={formatShare(displayResult.sentiment.negative_count)}
                     color="dislike"
                     icon={<AlertTriangle className="h-5 w-5" />}
                   />
                   <StatCard
                     label="Suggestions"
                     value={displayResult.sentiment.suggestion_count}
-                    subValue={`${((displayResult.sentiment.suggestion_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    subValue={formatShare(displayResult.sentiment.suggestion_count)}
                     color="suggestion"
                     icon={<Lightbulb className="h-5 w-5" />}
                   />
                   <StatCard
                     label="Neutral"
                     value={displayResult.sentiment.neutral_count}
-                    subValue={`${((displayResult.sentiment.neutral_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    subValue={formatShare(displayResult.sentiment.neutral_count)}
                     color="neutral"
                     icon={<MessageSquare className="h-5 w-5" />}
                   />
                 </StatsGrid>
 
                 {/* Charts Row - 4 charts */}
-                <div className="grid grid-cols-4 gap-3 flex-shrink-0 fade-up stagger-2">
+                <div className="grid grid-cols-4 gap-3 flex-shrink-0 fade-up stagger-3">
                   <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                     <h4 className="text-xs font-semibold text-stone-600 mb-2">Sentiment Distribution</h4>
                     <div className="h-36">
@@ -351,7 +364,7 @@ export default function Home() {
                 </div>
 
                 {/* Sentiment Sections - Scrollable */}
-                <ScrollArea className="flex-1 fade-up stagger-3">
+                <ScrollArea className="flex-1 fade-up stagger-4">
                   <div className="space-y-4 pr-4 pb-4">
                     <SentimentSection
                       sentiment="positive"

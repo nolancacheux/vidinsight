@@ -19,22 +19,22 @@ interface EngagementBarProps {
 
 // Editorial color palette - warm and sophisticated
 const COLORS = {
-  Love: "#059669", // emerald-600
-  Dislike: "#DC2626", // red-600
+  Positive: "#059669", // emerald-600
+  Negative: "#DC2626", // red-600
   Suggestions: "#2563EB", // blue-600
 };
 
 export function EngagementBar({ sentiment }: EngagementBarProps) {
   const data = [
     {
-      name: "Love",
+      name: "Positive",
       engagement: sentiment.positive_engagement,
-      fill: COLORS.Love,
+      fill: COLORS.Positive,
     },
     {
-      name: "Dislike",
+      name: "Negative",
       engagement: sentiment.negative_engagement,
-      fill: COLORS.Dislike,
+      fill: COLORS.Negative,
     },
     {
       name: "Suggestions",
