@@ -1,29 +1,26 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Heart, AlertTriangle, Lightbulb, MessageSquare } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VideoHeader } from "@/components/layout/video-header";
 import {
-  ChartCard,
   StatsGrid,
   StatCard,
 } from "@/components/layout/dashboard-grid";
 import { SentimentPie } from "@/components/charts/sentiment-pie";
-import { EngagementBar } from "@/components/charts/engagement-bar";
-import { TopicBubble } from "@/components/charts/topic-bubble";
 import { ConfidenceHistogram } from "@/components/charts/confidence-histogram";
 import { MLInfoPanel } from "@/components/analysis/ml-info-panel";
 import { ProgressTerminal } from "@/components/analysis/progress-terminal";
-import { TopicCard } from "@/components/results/topic-card";
-import { CommentCard } from "@/components/results/comment-card";
+import { TopicRanking } from "@/components/results/topic-ranking";
+import { SentimentSection } from "@/components/results/sentiment-summary";
+import { TopicSlideOver } from "@/components/results/topic-slide-over";
 import { UrlInput } from "@/components/url-input";
 import { ErrorDisplay } from "@/components/error-display";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAnalysis } from "@/hooks/useAnalysis";
-import { getAnalysisResult, getAnalysisHistory, deleteAnalysis } from "@/lib/api";
-import type { AnalysisResult, AnalysisHistoryItem, Topic } from "@/types";
+import { getAnalysisResult, getAnalysisHistory, deleteAnalysis, getCommentsByVideo } from "@/lib/api";
+import type { AnalysisResult, AnalysisHistoryItem, Topic, Comment } from "@/types";
 
 export default function Home() {
   const {
@@ -37,7 +34,6 @@ export default function Home() {
     commentsFound,
     commentsAnalyzed,
     mlMetrics,
-    absaProgress,
     startAnalysis,
     cancelAnalysis,
     reset,
@@ -47,7 +43,8 @@ export default function Home() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [historyResult, setHistoryResult] = useState<AnalysisResult | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [selectedSentimentTab, setSelectedSentimentTab] = useState<string>("all");
+  const [slideOverOpen, setSlideOverOpen] = useState(false);
+  const [allComments, setAllComments] = useState<Comment[]>([]);
 
   // Load history on mount and when analysis state changes
   useEffect(() => {
@@ -64,10 +61,31 @@ export default function Home() {
     loadHistory();
   }, [result, isAnalyzing]); // Refresh when result comes in or analysis stops (including cancel)
 
+  // Load all comments when displaying results
+  const displayResult = result || historyResult;
+  useEffect(() => {
+    const loadComments = async () => {
+      if (displayResult?.video?.id) {
+        try {
+          const comments = await getCommentsByVideo(displayResult.video.id);
+          setAllComments(comments);
+        } catch (err) {
+          console.error("Failed to load comments:", err);
+          // Fallback to sample comments from topics
+          const sampleComments = displayResult.topics.flatMap(t => t.sample_comments);
+          setAllComments(sampleComments);
+        }
+      }
+    };
+    loadComments();
+  }, [displayResult?.video?.id, displayResult?.topics]);
+
   const handleValidUrl = useCallback(
     (url: string) => {
       setHistoryResult(null);
       setSelectedTopic(null);
+      setSlideOverOpen(false);
+      setAllComments([]);
       startAnalysis(url);
     },
     [startAnalysis]
@@ -78,6 +96,7 @@ export default function Home() {
       const result = await getAnalysisResult(item.id);
       setHistoryResult(result);
       setSelectedTopic(null);
+      setSlideOverOpen(false);
     } catch (err) {
       console.error("Failed to load analysis:", err);
     }
@@ -87,6 +106,8 @@ export default function Home() {
     reset();
     setHistoryResult(null);
     setSelectedTopic(null);
+    setSlideOverOpen(false);
+    setAllComments([]);
   }, [reset]);
 
   const handleDeleteHistory = useCallback(async (id: number) => {
@@ -101,54 +122,30 @@ export default function Home() {
     }
   }, [historyResult?.id]);
 
-  const displayResult = result || historyResult;
+  const handleTopicClick = useCallback((topic: Topic) => {
+    setSelectedTopic(topic);
+    setSlideOverOpen(true);
+  }, []);
+
   const showInputState = !displayResult && !isAnalyzing && !error;
   const showAnalyzingState = isAnalyzing;
   const showResultsState = displayResult && !isAnalyzing;
   const showErrorState = error && !isAnalyzing;
 
-  // Get filtered comments based on selected topic and sentiment
-  const getFilteredComments = () => {
-    if (!displayResult) return [];
+  // Group comments by sentiment
+  const commentsBySentiment = useMemo(() => {
+    const positive = allComments.filter(c => c.sentiment === "positive");
+    const negative = allComments.filter(c => c.sentiment === "negative");
+    const suggestion = allComments.filter(c => c.sentiment === "suggestion");
+    const neutral = allComments.filter(c => c.sentiment === "neutral");
 
-    let comments = displayResult.topics.flatMap((topic) =>
-      topic.sample_comments.map((comment) => ({
-        ...comment,
-        topicName: topic.name,
-      }))
-    );
+    // Sort by likes within each group
+    [positive, negative, suggestion, neutral].forEach(group => {
+      group.sort((a, b) => b.like_count - a.like_count);
+    });
 
-    // Filter by sentiment tab
-    if (selectedSentimentTab !== "all") {
-      const sentimentMap: Record<string, string> = {
-        love: "positive",
-        dislike: "negative",
-        suggestions: "suggestion",
-      };
-      const sentiment = sentimentMap[selectedSentimentTab];
-      if (sentiment) {
-        comments = comments.filter((c) => c.sentiment === sentiment);
-      }
-    }
-
-    // Filter by selected topic
-    if (selectedTopic) {
-      comments = comments.filter((c) => c.topicName === selectedTopic.name);
-    }
-
-    // Sort by likes (most engaged first)
-    comments.sort((a, b) => b.like_count - a.like_count);
-
-    // Deduplicate and limit
-    const seen = new Set<string>();
-    return comments
-      .filter((c) => {
-        if (seen.has(c.id)) return false;
-        seen.add(c.id);
-        return true;
-      })
-      .slice(0, 6);
-  };
+    return { positive, negative, suggestion, neutral };
+  }, [allComments]);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#FAFAFA] flex">
@@ -220,7 +217,6 @@ export default function Home() {
                   videoTitle={videoTitle || undefined}
                   commentsFound={commentsFound || undefined}
                   commentsAnalyzed={commentsAnalyzed || undefined}
-                  absaProgress={absaProgress}
                   onCancel={cancelAnalysis}
                 />
               </div>
@@ -277,137 +273,107 @@ export default function Home() {
 
           {/* Results State */}
           {showResultsState && displayResult && (
-            <div className="h-full grid grid-rows-[auto_1fr_1fr] gap-3">
-              {/* Stats Row - with staggered fade-up animation */}
-              <StatsGrid className="fade-up stagger-1">
-                <StatCard
-                  label="Love"
-                  value={displayResult.sentiment.positive_count}
-                  subValue={`${((displayResult.sentiment.positive_count / displayResult.total_comments) * 100).toFixed(0)}%`}
-                  color="love"
-                  icon={<Heart className="h-5 w-5" />}
+            <div className="h-full flex gap-4">
+              {/* Left: Topic Ranking Sidebar */}
+              <div className="w-64 flex-shrink-0 rounded-xl border border-stone-200 bg-white overflow-hidden shadow-sm">
+                <TopicRanking
+                  topics={displayResult.topics}
+                  onTopicClick={handleTopicClick}
+                  selectedTopicId={selectedTopic?.id}
                 />
-                <StatCard
-                  label="Dislike"
-                  value={displayResult.sentiment.negative_count}
-                  subValue={`${((displayResult.sentiment.negative_count / displayResult.total_comments) * 100).toFixed(0)}%`}
-                  color="dislike"
-                  icon={<AlertTriangle className="h-5 w-5" />}
-                />
-                <StatCard
-                  label="Suggestions"
-                  value={displayResult.sentiment.suggestion_count}
-                  subValue={`${((displayResult.sentiment.suggestion_count / displayResult.total_comments) * 100).toFixed(0)}%`}
-                  color="suggestion"
-                  icon={<Lightbulb className="h-5 w-5" />}
-                />
-                <StatCard
-                  label="Neutral"
-                  value={displayResult.sentiment.neutral_count}
-                  subValue={`${((displayResult.sentiment.neutral_count / displayResult.total_comments) * 100).toFixed(0)}%`}
-                  color="neutral"
-                  icon={<MessageSquare className="h-5 w-5" />}
-                />
-              </StatsGrid>
+              </div>
 
-              {/* Charts Row - with staggered fade-up animation */}
-              <div className="grid grid-cols-4 gap-3 min-h-0 fade-up stagger-2">
-                <ChartCard title="Sentiment Distribution" subtitle="Comment breakdown by type">
-                  <SentimentPie sentiment={displayResult.sentiment} />
-                </ChartCard>
-                <ChartCard title="Engagement by Sentiment" subtitle="Total likes per category">
-                  <EngagementBar sentiment={displayResult.sentiment} />
-                </ChartCard>
-                <ChartCard title="Topic Analysis" subtitle="Size = mentions, Color = sentiment">
-                  <TopicBubble topics={displayResult.topics} />
-                </ChartCard>
-                <ChartCard title="ML Confidence" subtitle="Classification certainty">
-                  <ConfidenceHistogram
-                    avgConfidence={displayResult.ml_metadata?.avg_confidence || mlMetrics.avgConfidence || 0.85}
-                    distribution={displayResult.ml_metadata?.confidence_distribution}
+              {/* Right: Main Content */}
+              <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                {/* Stats Row */}
+                <StatsGrid className="fade-up stagger-1 flex-shrink-0">
+                  <StatCard
+                    label="Love"
+                    value={displayResult.sentiment.positive_count}
+                    subValue={`${((displayResult.sentiment.positive_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    color="love"
+                    icon={<Heart className="h-5 w-5" />}
                   />
-                </ChartCard>
-              </div>
+                  <StatCard
+                    label="Dislike"
+                    value={displayResult.sentiment.negative_count}
+                    subValue={`${((displayResult.sentiment.negative_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    color="dislike"
+                    icon={<AlertTriangle className="h-5 w-5" />}
+                  />
+                  <StatCard
+                    label="Suggestions"
+                    value={displayResult.sentiment.suggestion_count}
+                    subValue={`${((displayResult.sentiment.suggestion_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    color="suggestion"
+                    icon={<Lightbulb className="h-5 w-5" />}
+                  />
+                  <StatCard
+                    label="Neutral"
+                    value={displayResult.sentiment.neutral_count}
+                    subValue={`${((displayResult.sentiment.neutral_count / displayResult.total_comments) * 100).toFixed(0)}%`}
+                    color="neutral"
+                    icon={<MessageSquare className="h-5 w-5" />}
+                  />
+                </StatsGrid>
 
-              {/* Topics & Comments Row - with staggered fade-up animation */}
-              <div className="grid grid-cols-2 gap-3 min-h-0 fade-up stagger-3">
-                {/* Topics Section */}
-                <div className="rounded-xl border border-stone-200 bg-white overflow-hidden flex flex-col shadow-[0_4px_6px_rgba(28,25,23,0.07)]">
-                  <div className="px-4 py-2.5 border-b border-stone-100 bg-stone-50/50 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold font-display text-stone-800">Topics</h3>
-                    <span className="text-xs text-stone-500 font-body">
-                      {displayResult.topics.length} detected
-                    </span>
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-3 flex gap-3 flex-wrap">
-                      {displayResult.topics.map((topic) => (
-                        <TopicCard
-                          key={topic.id}
-                          topic={topic}
-                          isSelected={selectedTopic?.id === topic.id}
-                          onClick={() =>
-                            setSelectedTopic(
-                              selectedTopic?.id === topic.id ? null : topic
-                            )
-                          }
-                        />
-                      ))}
+                {/* Charts Row - Compact */}
+                <div className="grid grid-cols-2 gap-3 flex-shrink-0 fade-up stagger-2">
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <h4 className="text-xs font-semibold text-stone-600 mb-2">Sentiment Distribution</h4>
+                    <div className="h-32">
+                      <SentimentPie sentiment={displayResult.sentiment} />
                     </div>
-                  </ScrollArea>
+                  </div>
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <h4 className="text-xs font-semibold text-stone-600 mb-2">ML Confidence</h4>
+                    <div className="h-32">
+                      <ConfidenceHistogram
+                        avgConfidence={displayResult.ml_metadata?.avg_confidence || mlMetrics.avgConfidence || 0.85}
+                        distribution={displayResult.ml_metadata?.confidence_distribution}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Comments Section */}
-                <div className="rounded-xl border border-stone-200 bg-white overflow-hidden flex flex-col shadow-[0_4px_6px_rgba(28,25,23,0.07)]">
-                  <div className="px-4 py-2.5 border-b border-stone-100 bg-stone-50/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-semibold font-display text-stone-800">Sample Comments</h3>
-                      {selectedTopic && (
-                        <span className="text-xs text-[#E07A5F] font-body">
-                          Filtered: {selectedTopic.name}
-                        </span>
-                      )}
-                    </div>
-                    <Tabs
-                      value={selectedSentimentTab}
-                      onValueChange={setSelectedSentimentTab}
-                    >
-                      <TabsList className="h-7 bg-stone-100">
-                        <TabsTrigger value="all" className="text-xs px-2 h-6 font-body">
-                          All
-                        </TabsTrigger>
-                        <TabsTrigger value="love" className="text-xs px-2 h-6 font-body">
-                          Love
-                        </TabsTrigger>
-                        <TabsTrigger value="dislike" className="text-xs px-2 h-6 font-body">
-                          Dislike
-                        </TabsTrigger>
-                        <TabsTrigger value="suggestions" className="text-xs px-2 h-6 font-body">
-                          Suggestions
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
+                {/* Sentiment Sections - Scrollable */}
+                <ScrollArea className="flex-1 fade-up stagger-3">
+                  <div className="space-y-4 pr-4 pb-4">
+                    <SentimentSection
+                      sentiment="positive"
+                      summary={displayResult.summaries?.positive}
+                      topics={displayResult.topics}
+                      comments={commentsBySentiment.positive}
+                      onTopicClick={handleTopicClick}
+                      maxComments={5}
+                    />
+                    <SentimentSection
+                      sentiment="negative"
+                      summary={displayResult.summaries?.negative}
+                      topics={displayResult.topics}
+                      comments={commentsBySentiment.negative}
+                      onTopicClick={handleTopicClick}
+                      maxComments={5}
+                    />
+                    <SentimentSection
+                      sentiment="suggestion"
+                      summary={displayResult.summaries?.suggestion}
+                      topics={displayResult.topics}
+                      comments={commentsBySentiment.suggestion}
+                      onTopicClick={handleTopicClick}
+                      maxComments={5}
+                    />
                   </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-3 grid grid-cols-2 gap-3">
-                      {getFilteredComments().map((comment) => (
-                        <CommentCard
-                          key={comment.id}
-                          comment={comment}
-                          topicName={comment.topicName}
-                          confidence={comment.confidence || undefined}
-                          showHighlighting={true}
-                        />
-                      ))}
-                      {getFilteredComments().length === 0 && (
-                        <div className="col-span-2 text-center py-8 text-sm text-stone-500 font-body">
-                          No comments match the current filters
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
+                </ScrollArea>
               </div>
+
+              {/* Topic Slide-Over */}
+              <TopicSlideOver
+                topic={selectedTopic}
+                comments={allComments}
+                open={slideOverOpen}
+                onOpenChange={setSlideOverOpen}
+              />
             </div>
           )}
         </div>
