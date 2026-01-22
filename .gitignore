@@ -91,3 +91,4 @@ next-env.d.ts
 .debug/
 
 .coverage
+CLAUDE.md
