@@ -155,6 +155,8 @@ class SearchResult(BaseModel):
     thumbnail: str
     duration: str | None = None
     view_count: int | None = None
+    published_at: str | None = None
+    description: str | None = None
 
 
 # ABSA (Aspect-Based Sentiment Analysis) Models

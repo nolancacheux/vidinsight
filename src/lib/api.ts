@@ -137,7 +137,7 @@ export function getVideoThumbnail(videoId: string): string {
 
 export async function searchVideos(
   query: string,
-  limit = 5,
+  limit = 8,
   signal?: AbortSignal
 ): Promise<SearchResult[]> {
   const response = await fetch(
@@ -159,6 +159,8 @@ export async function searchVideos(
     thumbnail: r.thumbnail,
     duration: r.duration,
     viewCount: r.view_count,
+    publishedAt: r.published_at,
+    description: r.description,
   }));
 }
 

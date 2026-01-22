@@ -40,6 +40,8 @@ class SearchResultData:
     thumbnail: str
     duration: str | None
     view_count: int | None
+    published_at: str | None = None
+    description: str | None = None
 
 
 class YouTubeExtractionError(Exception):
@@ -203,6 +205,7 @@ class YouTubeExtractor:
 
         logger.info(f"[YouTube] Searching for: '{query}' (max {max_results} results)")
         try:
+            # Use full metadata extraction for better search results
             result = subprocess.run(
                 [
                     "yt-dlp",
@@ -210,14 +213,15 @@ class YouTubeExtractor:
                     "--dump-json",
                     "--no-download",
                     "--no-warnings",
-                    "--flat-playlist",
+                    "--ignore-errors",
+                    "--no-playlist",
                 ],
                 capture_output=True,
                 text=True,
                 timeout=settings.YOUTUBE_SEARCH_TIMEOUT,
             )
 
-            if result.returncode != 0:
+            if result.returncode != 0 and not result.stdout:
                 raise YouTubeExtractionError(f"Search failed: {result.stderr}")
 
             results = []
@@ -227,6 +231,12 @@ class YouTubeExtractor:
                 try:
                     data = json.loads(line)
                     video_id = data.get("id", "")
+
+                    # Skip if no video ID
+                    if not video_id:
+                        continue
+
+                    # Format duration
                     duration_secs = data.get("duration")
                     duration_str = None
                     if duration_secs:
@@ -237,6 +247,20 @@ class YouTubeExtractor:
                         else:
                             duration_str = f"{minutes}:{seconds:02d}"
 
+                    # Format publish date
+                    published_at = None
+                    if upload_date := data.get("upload_date"):
+                        try:
+                            dt = datetime.strptime(upload_date, "%Y%m%d")
+                            published_at = dt.strftime("%d/%m/%Y")
+                        except ValueError:
+                            pass
+
+                    # Get description (truncated)
+                    description = data.get("description", "")
+                    if description and len(description) > 150:
+                        description = description[:150].rsplit(" ", 1)[0] + "..."
+
                     results.append(
                         SearchResultData(
                             id=video_id,
@@ -244,10 +268,12 @@ class YouTubeExtractor:
                             channel=data.get("channel", data.get("uploader", "Unknown")),
                             thumbnail=data.get(
                                 "thumbnail",
-                                f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                                f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
                             ),
                             duration=duration_str,
                             view_count=data.get("view_count"),
+                            published_at=published_at,
+                            description=description,
                         )
                     )
                 except json.JSONDecodeError:
@@ -257,5 +283,5 @@ class YouTubeExtractor:
             return results
 
         except subprocess.TimeoutExpired:
-            logger.warning("[YouTube] Search timed out after 30s")
+            logger.warning(f"[YouTube] Search timed out after {settings.YOUTUBE_SEARCH_TIMEOUT}s")
             raise YouTubeExtractionError("Timeout while searching videos")

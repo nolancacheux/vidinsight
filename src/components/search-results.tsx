@@ -1,5 +1,6 @@
 "use client";
 
+import { Calendar } from "lucide-react";
 import type { SearchResult } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +70,7 @@ export function SearchResults({
   return (
     <div
       className={cn(
-        "absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-80 overflow-y-auto",
+        "absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-[420px] overflow-y-auto",
         className
       )}
     >
@@ -79,22 +80,22 @@ export function SearchResults({
             <button
               type="button"
               onClick={() => onSelect(result)}
-              className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left"
+              className="w-full flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors text-left"
             >
               <img
                 src={result.thumbnail}
                 alt={result.title}
-                className="w-24 h-14 object-cover rounded flex-shrink-0"
+                className="w-32 h-20 object-cover rounded flex-shrink-0"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://i.ytimg.com/vi/${result.id}/hqdefault.jpg`;
                 }}
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{result.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{result.channel}</p>
-                <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm font-medium line-clamp-2 leading-tight">{result.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{result.channel}</p>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {result.duration && (
-                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">
                       {result.duration}
                     </span>
                   )}
@@ -103,7 +104,18 @@ export function SearchResults({
                       {formatViewCount(result.viewCount)}
                     </span>
                   )}
+                  {result.publishedAt && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {result.publishedAt}
+                    </span>
+                  )}
                 </div>
+                {result.description && (
+                  <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2 leading-snug">
+                    {result.description}
+                  </p>
+                )}
               </div>
             </button>
           </li>

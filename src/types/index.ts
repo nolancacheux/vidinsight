@@ -183,4 +183,6 @@ export interface SearchResult {
   thumbnail: string;
   duration?: string;
   viewCount?: number;
+  publishedAt?: string;
+  description?: string;
 }
