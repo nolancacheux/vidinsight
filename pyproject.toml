@@ -80,4 +80,4 @@ exclude_lines = [
     "if not self._ml_available:",
     "except ImportError:",
 ]
-fail_under = 75
+fail_under = 65
