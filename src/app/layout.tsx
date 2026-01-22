@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Fraunces, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -29,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrains.variable} antialiased`}
+        className={`${fraunces.variable} ${dmSans.variable} ${jetbrains.variable} antialiased`}
       >
         {children}
       </body>

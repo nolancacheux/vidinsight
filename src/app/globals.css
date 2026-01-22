@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* Editorial Design System for AI Video Comment Analyzer
-   Light theme with warm sophistication - Monocle Magazine meets Bloomberg Terminal */
+/* AI Video Comment Analyzer - Redesigned Design System
+   Warm Navy + Terracotta theme with Fraunces + DM Sans typography */
 
 @theme inline {
   /* Color palette */
@@ -31,70 +31,94 @@
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
 
-  /* Typography - Inter font system */
-  --font-inter: var(--font-inter);
+  /* Typography */
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-dm-sans);
   --font-mono: var(--font-mono);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-dm-sans);
 
-  /* Shadows - warm tones */
-  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05);
-  --shadow-md: 0 4px 6px rgba(28, 25, 23, 0.07), 0 2px 4px rgba(28, 25, 23, 0.05);
-  --shadow-lg: 0 10px 15px rgba(28, 25, 23, 0.1), 0 4px 6px rgba(28, 25, 23, 0.05);
-  --shadow-xl: 0 20px 25px rgba(28, 25, 23, 0.15), 0 8px 10px rgba(28, 25, 23, 0.1);
+  /* Shadows - warm navy tones */
+  --shadow-sm: 0 1px 2px rgba(30, 58, 95, 0.05);
+  --shadow-md: 0 4px 6px rgba(30, 58, 95, 0.08), 0 2px 4px rgba(30, 58, 95, 0.04);
+  --shadow-lg: 0 10px 15px rgba(30, 58, 95, 0.1), 0 4px 6px rgba(30, 58, 95, 0.05);
+  --shadow-xl: 0 20px 25px rgba(30, 58, 95, 0.12), 0 8px 10px rgba(30, 58, 95, 0.08);
 }
 
 :root {
-  /* Warm light theme - stone palette */
-  --background: #FAFAF9;           /* stone-50 - warm white */
-  --foreground: #1C1917;           /* stone-900 - warm charcoal */
+  /* Primary Colors - Warm Navy + Terracotta */
+  --color-navy: #1E3A5F;
+  --color-navy-light: #2B4A72;
+  --color-navy-dark: #152B47;
+  --color-terracotta: #D4714E;
+  --color-terracotta-light: #E08B6D;
+  --color-terracotta-dark: #B85D3E;
+
+  /* Background - Layered warmth */
+  --background: #FAF8F5;          /* Warm cream */
+  --foreground: #1E3A5F;          /* Deep navy for text */
 
   --card: #FFFFFF;
-  --card-foreground: #1C1917;
+  --card-foreground: #1E3A5F;
 
   --popover: #FFFFFF;
-  --popover-foreground: #1C1917;
+  --popover-foreground: #1E3A5F;
 
-  --primary: #E07A5F;              /* Sophisticated coral accent */
+  --primary: #1E3A5F;             /* Deep navy */
   --primary-foreground: #FFFFFF;
 
-  --secondary: #F5F5F4;            /* stone-100 */
-  --secondary-foreground: #44403C; /* stone-700 */
+  --secondary: #F5F2ED;           /* Warm off-white */
+  --secondary-foreground: #1E3A5F;
 
-  --muted: #E7E5E4;                /* stone-200 */
-  --muted-foreground: #78716C;     /* stone-500 */
+  --muted: #E8E4DC;               /* Warm gray */
+  --muted-foreground: #6B7280;    /* Slate for muted text */
 
-  --accent: #E07A5F;               /* Coral accent */
+  --accent: #D4714E;              /* Warm terracotta */
   --accent-foreground: #FFFFFF;
 
-  --destructive: #DC2626;          /* red-600 */
+  --destructive: #C44536;         /* Burnt red */
   --destructive-foreground: #FFFFFF;
 
-  --border: #E7E5E4;               /* stone-200 */
-  --input: #E7E5E4;
-  --ring: #E07A5F;                 /* Coral for focus */
+  --border: #E8E4DC;              /* Warm border */
+  --input: #E8E4DC;
+  --ring: #D4714E;                /* Terracotta for focus */
 
-  /* Sentiment colors - refined, not garish */
-  --color-love: #059669;           /* emerald-600 */
-  --color-love-bg: rgba(16, 185, 129, 0.1);
-  --color-love-text: #047857;      /* emerald-700 */
+  /* Sentiment Colors - Refined palette */
+  --color-positive: #2D7A5E;      /* Forest green */
+  --color-positive-bg: rgba(45, 122, 94, 0.1);
+  --color-positive-text: #236349;
 
-  --color-dislike: #DC2626;        /* red-600 */
-  --color-dislike-bg: rgba(252, 165, 165, 0.2);
-  --color-dislike-text: #B91C1C;   /* red-700 */
+  --color-negative: #C44536;      /* Burnt red */
+  --color-negative-bg: rgba(196, 69, 54, 0.1);
+  --color-negative-text: #A33829;
 
-  --color-suggestion: #2563EB;     /* blue-600 */
-  --color-suggestion-bg: rgba(147, 197, 253, 0.2);
-  --color-suggestion-text: #1D4ED8; /* blue-700 */
+  --color-suggestion: #4A7C9B;    /* Steel blue */
+  --color-suggestion-bg: rgba(74, 124, 155, 0.1);
+  --color-suggestion-text: #3A6480;
 
-  --color-neutral: #64748B;        /* slate-500 */
-  --color-neutral-bg: rgba(148, 163, 184, 0.1);
-  --color-neutral-text: #475569;   /* slate-600 */
+  --color-neutral: #6B7280;       /* Slate */
+  --color-neutral-bg: rgba(107, 114, 128, 0.1);
+  --color-neutral-text: #4B5563;
+
+  /* Legacy sentiment mappings for backward compatibility */
+  --color-love: var(--color-positive);
+  --color-love-bg: var(--color-positive-bg);
+  --color-love-text: var(--color-positive-text);
+
+  --color-dislike: var(--color-negative);
+  --color-dislike-bg: var(--color-negative-bg);
+  --color-dislike-text: var(--color-negative-text);
 
   /* High engagement colors */
-  --color-high-likes: #D97706;     /* amber-600 */
-  --color-medium-likes: #78716C;   /* stone-500 */
+  --color-high-likes: #D4714E;    /* Terracotta for emphasis */
+  --color-medium-likes: #6B7280;
 
   --radius: 0.75rem;
+}
+
+/* Background dot pattern */
+.bg-dot-pattern {
+  background-image: radial-gradient(circle, #E8E4DC 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* Base styles */
@@ -112,14 +136,14 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
     font-weight: 400;
     line-height: 1.6;
   }
 
-  /* Selection styling */
+  /* Selection styling - terracotta accent */
   ::selection {
-    background-color: rgba(224, 122, 95, 0.2);
+    background-color: rgba(212, 113, 78, 0.2);
     color: inherit;
   }
 
@@ -130,11 +154,19 @@
   }
 
   /* Typography hierarchy */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-inter), system-ui, sans-serif;
+  h1, h2, h3 {
+    font-family: var(--font-fraunces), Georgia, serif;
     font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.2;
+    color: var(--color-navy);
+  }
+
+  h4, h5, h6 {
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
   }
 
   /* Monospace for data */
@@ -148,7 +180,7 @@
 @layer base {
   * {
     scrollbar-width: thin;
-    scrollbar-color: #A8A29E #F5F5F4;
+    scrollbar-color: #C4C0B8 #F5F2ED;
   }
 
   *::-webkit-scrollbar {
@@ -157,51 +189,55 @@
   }
 
   *::-webkit-scrollbar-track {
-    background: #F5F5F4;
+    background: #F5F2ED;
     border-radius: 4px;
   }
 
   *::-webkit-scrollbar-thumb {
-    background: #A8A29E;
+    background: #C4C0B8;
     border-radius: 4px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: #78716C;
+    background: #9E9A92;
   }
 }
 
 /* Utility classes */
 @layer utilities {
-  /* Inter font utility */
-  .font-inter {
-    font-family: var(--font-inter), system-ui, sans-serif;
+  /* Font utilities */
+  .font-display {
+    font-family: var(--font-fraunces), Georgia, serif;
+  }
+
+  .font-body {
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
   }
 
   /* Editorial small caps */
   .small-caps {
     font-variant: small-caps;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     font-weight: 500;
   }
 
-  /* Card hover effect */
+  /* Card hover effect - enhanced lift */
   .card-hover {
-    transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
   }
 
   .card-hover:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
   }
 
   /* Sentiment background colors */
-  .bg-love {
-    background-color: var(--color-love-bg);
+  .bg-positive {
+    background-color: var(--color-positive-bg);
   }
 
-  .bg-dislike {
-    background-color: var(--color-dislike-bg);
+  .bg-negative {
+    background-color: var(--color-negative-bg);
   }
 
   .bg-suggestion {
@@ -212,13 +248,22 @@
     background-color: var(--color-neutral-bg);
   }
 
-  /* Sentiment text colors */
-  .text-love {
-    color: var(--color-love);
+  /* Legacy sentiment classes */
+  .bg-love {
+    background-color: var(--color-positive-bg);
   }
 
-  .text-dislike {
-    color: var(--color-dislike);
+  .bg-dislike {
+    background-color: var(--color-negative-bg);
+  }
+
+  /* Sentiment text colors */
+  .text-positive {
+    color: var(--color-positive);
+  }
+
+  .text-negative {
+    color: var(--color-negative);
   }
 
   .text-suggestion {
@@ -227,6 +272,15 @@
 
   .text-neutral-sentiment {
     color: var(--color-neutral);
+  }
+
+  /* Legacy sentiment text classes */
+  .text-love {
+    color: var(--color-positive);
+  }
+
+  .text-dislike {
+    color: var(--color-negative);
   }
 
   /* High engagement styling */
@@ -239,12 +293,20 @@
     color: var(--color-medium-likes);
   }
 
-  /* Subtle gradient for headers */
+  /* Gradient backgrounds */
   .gradient-header {
     background: linear-gradient(
       to bottom,
       rgba(255, 255, 255, 1) 0%,
-      rgba(250, 250, 249, 1) 100%
+      var(--background) 100%
+    );
+  }
+
+  .gradient-navy {
+    background: linear-gradient(
+      135deg,
+      var(--color-navy) 0%,
+      var(--color-navy-light) 100%
     );
   }
 
@@ -252,9 +314,9 @@
   .skeleton {
     background: linear-gradient(
       90deg,
-      #E7E5E4 0%,
-      #F5F5F4 50%,
-      #E7E5E4 100%
+      #E8E4DC 0%,
+      #F5F2ED 50%,
+      #E8E4DC 100%
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
@@ -283,23 +345,41 @@
     }
   }
 
-  /* Stagger animation for page load */
+  /* Page-load reveal animation */
+  .reveal {
+    animation: reveal 0.5s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Stagger animation for page load - 80ms increments */
   .stagger-1 { animation-delay: 0ms; }
-  .stagger-2 { animation-delay: 50ms; }
-  .stagger-3 { animation-delay: 100ms; }
-  .stagger-4 { animation-delay: 150ms; }
-  .stagger-5 { animation-delay: 200ms; }
+  .stagger-2 { animation-delay: 80ms; }
+  .stagger-3 { animation-delay: 160ms; }
+  .stagger-4 { animation-delay: 240ms; }
+  .stagger-5 { animation-delay: 320ms; }
+  .stagger-6 { animation-delay: 400ms; }
 
   /* Fade up animation */
   .fade-up {
-    animation: fade-up 300ms ease-out forwards;
+    animation: fade-up 400ms ease-out forwards;
     opacity: 0;
   }
 
   @keyframes fade-up {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(12px);
     }
     to {
       opacity: 1;
@@ -309,24 +389,56 @@
 
   /* Word highlighting for sentiment */
   .highlight-positive {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #047857;
+    background-color: rgba(45, 122, 94, 0.15);
+    color: #236349;
     padding: 0 2px;
     border-radius: 2px;
   }
 
   .highlight-negative {
-    background-color: rgba(220, 38, 38, 0.1);
-    color: #B91C1C;
+    background-color: rgba(196, 69, 54, 0.15);
+    color: #A33829;
     padding: 0 2px;
     border-radius: 2px;
   }
 
   .highlight-suggestion {
-    background-color: rgba(37, 99, 235, 0.1);
-    color: #1D4ED8;
+    background-color: rgba(74, 124, 155, 0.15);
+    color: #3A6480;
     padding: 0 2px;
     border-radius: 2px;
+  }
+
+  /* Left border accent utilities */
+  .border-l-positive {
+    border-left-color: var(--color-positive);
+  }
+
+  .border-l-negative {
+    border-left-color: var(--color-negative);
+  }
+
+  .border-l-suggestion {
+    border-left-color: var(--color-suggestion);
+  }
+
+  .border-l-neutral {
+    border-left-color: var(--color-neutral);
+  }
+
+  /* Tab active state */
+  .tab-active {
+    position: relative;
+  }
+
+  .tab-active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-terracotta);
   }
 }
 

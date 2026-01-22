@@ -14,12 +14,12 @@ interface SentimentPieProps {
   sentiment: SentimentSummary;
 }
 
-// Editorial color palette - warm and sophisticated
+// Redesigned color palette - Navy + Terracotta theme
 const COLORS = {
-  positive: "#059669", // emerald-600 (love)
-  negative: "#DC2626", // red-600 (dislike)
-  suggestion: "#2563EB", // blue-600
-  neutral: "#78716C", // stone-500
+  positive: "#2D7A5E", // Forest green
+  negative: "#C44536", // Burnt red
+  suggestion: "#4A7C9B", // Steel blue
+  neutral: "#6B7280", // Slate
 };
 
 const LABELS = {
