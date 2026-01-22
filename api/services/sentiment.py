@@ -88,6 +88,14 @@ POSITIVE_KEYWORDS = [
     "magnifique",
     "parfait",
     "incroyable",
+    # French positive phrases
+    "adore",       # "j'adore" = I love
+    "trop bien",   # "trop bien" = so good
+    "hâte",        # "j'ai hâte de" = looking forward to
+    "hate de",     # without accent variant
+    "génial",      # with accent
+    "superbe",
+    "formidable",
 ]
 
 NEGATIVE_KEYWORDS = [

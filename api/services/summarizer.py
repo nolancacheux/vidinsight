@@ -129,14 +129,24 @@ class Summarizer:
             "suggestion": "Suggestions for Improvement",
         }.get(sentiment, sentiment.capitalize())
 
-        prompt = f"""You are analyzing YouTube comments. Summarize the following {sentiment} comments in 2-3 sentences.
-Focus on the main points viewers are expressing. Be specific and actionable.
+        # For very small datasets, return a note about insufficient data
+        if len(comments) < 5:
+            return f"Not enough data for a reliable summary (only {len(comments)} comments in this category)."
+
+        prompt = f"""You are analyzing YouTube comments for a video. Your task is to provide a structured summary.
+
+Sentiment category: {sentiment_label}
 {topic_context}
 
 Comments ({len(comments)} total, showing {sample_size}):
 {chr(10).join(f"- {c[:200]}" for c in sampled)}
 
-Write a concise summary for the "{sentiment_label}" section (2-3 sentences only):"""
+Write a clear, actionable summary in 2-3 sentences. Focus on:
+1. What the main themes/patterns are
+2. What specific aspects viewers mention most
+3. What action the creator could take (if applicable)
+
+Be specific and avoid generic statements. Provide concrete insights:"""
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

@@ -113,6 +113,17 @@ class TestSimpleSentiment:
         assert simple_sentiment("Merci beaucoup, magnifique!") == SentimentCategory.POSITIVE
         assert simple_sentiment("C'est nul et pourri") == SentimentCategory.NEGATIVE
 
+    def test_simple_sentiment_french_positive_phrases(self):
+        """Test French positive phrases like 'hâte de' (looking forward to)."""
+        # "J'ai hâte de voir la suite" = "I'm looking forward to seeing the rest"
+        # This should be POSITIVE, not negative
+        result = simple_sentiment("J'ai hâte de voir la suite")
+        assert result == SentimentCategory.POSITIVE, "hâte de should be positive (looking forward to)"
+
+        # Additional positive French phrases
+        assert simple_sentiment("Trop bien cette vidéo!") == SentimentCategory.POSITIVE
+        assert simple_sentiment("J'adore ce contenu") == SentimentCategory.POSITIVE
+
 
 class TestSentimentAnalyzer:
     """Tests for SentimentAnalyzer class."""
