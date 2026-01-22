@@ -1,15 +1,15 @@
 # AI-Video-Comment-Analyzer
 
-AI-powered YouTube comment analysis tool with sentiment detection, topic modeling, and AI-generated summaries.
+AI-powered YouTube comment analysis tool with ML-powered sentiment detection, topic modeling, and AI-generated summaries.
 
 ## Features
 
-- **Comment Extraction**: Fetch comments from any YouTube video using yt-dlp
+- **Comment Extraction**: Fetch up to 500 comments from any YouTube video using yt-dlp
 - **Sentiment Analysis**: BERT-powered multilingual sentiment classification (positive/negative/neutral/suggestion)
 - **Topic Modeling**: BERTopic clustering to identify key discussion themes
 - **AI Summaries**: Local LLM-powered summaries via Ollama (llama3.2:3b)
-- **Interactive Dashboard**: Real-time analysis progress with topic ranking sidebar
-- **Topic Slide-Over**: Click any topic to see all related comments
+- **Multi-Page Dashboard**: Dedicated pages for Overview, Charts, Topics, and Comments
+- **Real-time Progress**: SSE streaming with ML metrics during analysis
 
 ## Quick Start
 
@@ -20,6 +20,7 @@ AI-powered YouTube comment analysis tool with sentiment detection, topic modelin
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [Ollama](https://ollama.ai) (optional, for AI summaries)
+- NVIDIA GPU with CUDA (optional, for faster ML inference)
 
 ### Frontend Setup
 
@@ -39,7 +40,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies and create venv
+# Install dependencies (includes ML models: torch, transformers, bertopic)
 uv sync
 
 # Run API server
@@ -63,34 +64,73 @@ ollama pull llama3.2:3b
 ollama serve
 ```
 
-## Tech Stack
+## Architecture
 
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS v4, shadcn/ui
-- **Backend**: FastAPI, Python 3.11+, yt-dlp
-- **Database**: SQLite with SQLAlchemy
+### Multi-Page Routes
+
+```
+/                           - Home (URL input + history sidebar)
+/analysis/[id]              - Overview page (At a Glance + Summary Cards)
+/analysis/[id]/charts       - Charts page (2x2 grid with context)
+/analysis/[id]/topics       - Topics page (list + detail panel)
+/analysis/[id]/comments     - Comments page (filters + sorting)
+```
+
+### Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Recharts
+- **Backend**: FastAPI, Python 3.11+, yt-dlp, SQLAlchemy
+- **Database**: SQLite
 - **AI/ML**:
-  - `nlptown/bert-base-multilingual-uncased-sentiment` (sentiment analysis)
-  - BERTopic (topic modeling)
+  - `nlptown/bert-base-multilingual-uncased-sentiment` (sentiment)
+  - BERTopic with `all-MiniLM-L6-v2` embeddings (topics)
   - Ollama with llama3.2:3b (AI summaries)
+
+### Design System
+
+- **Typography**: Fraunces (display), DM Sans (body), JetBrains Mono (code)
+- **Colors**: Navy (#1E3A5F) + Terracotta (#D4714E) accent, warm cream background
+- **Sentiment**: Green (positive), Red (negative), Blue (suggestion), Gray (neutral)
 
 ## Project Structure
 
 ```
-AI-Video-Comment-Analyzer/
-├── src/                    # Next.js frontend
-│   ├── components/         # React components
-│   │   ├── results/        # Topic ranking, sentiment summaries
-│   │   └── ui/             # shadcn components
-│   ├── hooks/              # useAnalysis hook
-│   └── types/              # TypeScript interfaces
-├── api/                    # FastAPI backend
-│   ├── services/           # ML services
-│   │   ├── summarizer.py   # Ollama LLM integration
-│   │   ├── sentiment.py    # BERT sentiment
-│   │   └── topics.py       # Topic modeling
-│   ├── routers/            # API endpoints
-│   └── db/                 # SQLAlchemy models
-└── tests/                  # pytest tests
+src/
+├── app/
+│   ├── page.tsx                    # Home (input + history)
+│   ├── layout.tsx                  # Root layout with fonts
+│   ├── globals.css                 # Design system
+│   └── analysis/[id]/
+│       ├── layout.tsx              # Analysis layout (nav + tabs)
+│       ├── page.tsx                # Overview page
+│       ├── charts/page.tsx         # Charts page
+│       ├── topics/page.tsx         # Topics page
+│       └── comments/page.tsx       # Comments page
+├── components/
+│   ├── navigation/                 # GlobalNav, AnalysisTabs
+│   ├── blocks/                     # EvidenceStrip, SummaryCard, SentimentFilter
+│   ├── charts/                     # SentimentPie, EngagementBar, etc.
+│   └── results/                    # TopicRanking, CommentCard, etc.
+├── context/
+│   └── analysis-context.tsx        # Shared analysis state
+├── hooks/
+│   ├── useAnalysis.ts              # Analysis + ML metrics
+│   └── useAnalysisData.ts          # Data fetching
+└── types/
+    └── index.ts                    # TypeScript interfaces
+
+api/
+├── main.py                         # FastAPI app
+├── config.py                       # Environment config
+├── routers/
+│   └── analysis.py                 # SSE streaming endpoints
+├── services/
+│   ├── youtube.py                  # yt-dlp extraction
+│   ├── sentiment.py                # BERT sentiment
+│   ├── topics.py                   # BERTopic modeling
+│   └── summarizer.py               # Ollama summaries
+└── db/
+    └── models.py                   # SQLAlchemy models
 ```
 
 ## API Endpoints
@@ -99,26 +139,47 @@ AI-Video-Comment-Analyzer/
 |--------|----------|-------------|
 | POST | `/api/analysis/analyze` | Start analysis (SSE stream) |
 | GET | `/api/analysis/result/{id}` | Get analysis results |
+| GET | `/api/analysis/result/{id}/comments` | Get comments for analysis |
 | GET | `/api/analysis/history` | List past analyses |
 | DELETE | `/api/analysis/history/{id}` | Delete an analysis |
-| GET | `/api/analysis/video/{id}/comments` | Get comments for a video |
+| GET | `/api/analysis/search` | Search YouTube videos |
 
 ## Environment Variables
 
 Copy `.env.example` to `.env` and configure:
 
 ```bash
+# YouTube
+YOUTUBE_MAX_COMMENTS=500
+
 # Ollama (AI Summaries)
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2:3b
 OLLAMA_ENABLED=true
 
-# Hugging Face (optional, for faster inference)
+# Hugging Face (optional)
 HF_TOKEN=your_token_here
 HF_ENABLED=true
+
+# ML Processing
+SENTIMENT_BATCH_SIZE=32
+MAX_TOPICS=10
 ```
 
 ## Development
+
+### Running the App
+
+```bash
+# Terminal 1 - Frontend
+pnpm dev
+
+# Terminal 2 - Backend
+uv run uvicorn api.main:app --reload --port 8000
+
+# Terminal 3 - Ollama (optional)
+ollama serve
+```
 
 ### Running Tests
 
@@ -126,28 +187,28 @@ HF_ENABLED=true
 # Run all tests
 uv run pytest tests/ -v
 
-# Run with coverage report
+# Run with coverage
 uv run pytest tests/ -v --cov=api --cov-report=term-missing
 ```
 
 ### Code Quality
 
 ```bash
-# Lint check
+# Lint
 uv run ruff check api/ tests/
 
-# Auto-fix lint issues
-uv run ruff check api/ tests/ --fix
-
-# Format code
+# Format
 uv run ruff format api/ tests/
+
+# Frontend lint
+pnpm lint
 ```
 
 ### CI Pipeline
 
 GitHub Actions runs on every push/PR:
 - **Lint**: Ruff check + format verification
-- **Test**: pytest with 75% coverage threshold
+- **Test**: pytest with 65% coverage threshold
 
 ## License
 
