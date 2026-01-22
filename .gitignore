@@ -92,3 +92,4 @@ next-env.d.ts
 
 .coverage
 CLAUDE.md
+coverage.xml
