@@ -1,3 +1,16 @@
+"""
+Analysis Pipeline - The core ML processing flow.
+
+This is where all the magic happens:
+1. Validate URL and fetch video metadata
+2. Extract comments via yt-dlp
+3. Run BERT sentiment analysis (with streaming progress)
+4. Extract topics via BERTopic (embeddings + clustering)
+5. Generate AI summaries via Ollama
+
+Each stage emits SSE events so the frontend can show real-time progress.
+"""
+
 import asyncio
 import logging
 import math
@@ -28,6 +41,17 @@ logger = logging.getLogger(__name__)
 
 
 async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
+    """
+    Main analysis pipeline. Yields SSE-formatted progress events.
+
+    Progress breakdown:
+    - 0-20%: URL validation + metadata fetch
+    - 20-45%: Comment extraction
+    - 45-65%: Sentiment analysis (BERT)
+    - 65-80%: Topic detection (BERTopic)
+    - 80-95%: AI summaries (Ollama)
+    - 95-100%: Finalization
+    """
     logger.info(f"[Analysis] Starting analysis for URL: {url}")
     extractor = YouTubeExtractor()
 
@@ -169,7 +193,8 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
     analyzer = get_sentiment_analyzer()
     texts = [c.text for c in comments_data]
 
-    # Stream ML progress with real metrics
+    # --- SENTIMENT ANALYSIS (BERT) ---
+    # Stream progress with real metrics (speed, tokens, batch info)
     sentiment_results = []
     total_tokens = 0
     last_batch_num = -1
@@ -223,8 +248,8 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         )
     )
 
-    # Create Analysis record early so we can associate comments with it
-    # Calculate avg confidence from sentiment results
+    # --- STORE RESULTS IN DB ---
+    # Create Analysis record early so comments can reference it
     confidence_scores = [sr.score for sr in sentiment_results if sr.score is not None]
     avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
 
@@ -238,7 +263,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
     db.add(analysis)
     db.commit()
 
-    # Store comments with unique IDs scoped to this analysis
+    # Store comments with analysis-scoped unique IDs (allows re-analysis)
     comment_objects = []
     for cd, sr in zip(comments_data, sentiment_results):
         # Use analysis_id prefix to create unique comment IDs per analysis
@@ -260,6 +285,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         db.add(comment)
     db.commit()
 
+    # Group comments by sentiment for topic extraction
     positive_comments = [
         (c, cd)
         for c, cd, sr in zip(comment_objects, comments_data, sentiment_results)
@@ -281,17 +307,37 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         if sr.category == SentimentCategory.NEUTRAL
     ]
 
-    # Topic Detection (progress: 65-80%)
+    # --- TOPIC DETECTION (BERTopic) ---
+    # Uses MiniLM embeddings + HDBSCAN clustering
     yield format_sse(
         ProgressEvent(
             stage=AnalysisStage.DETECTING_TOPICS,
-            message="Detecting topics with BERTopic...",
-            progress=68,
+            message="Loading embedding model...",
+            progress=66,
+            data={
+                "model_name": "all-MiniLM-L6-v2",
+                "model_stage": "loading",
+            },
         )
     )
 
     topic_modeler = get_topic_modeler()
     all_topics = []
+
+    yield format_sse(
+        ProgressEvent(
+            stage=AnalysisStage.DETECTING_TOPICS,
+            message="Generating embeddings...",
+            progress=68,
+            data={
+                "model_name": "all-MiniLM-L6-v2",
+                "model_stage": "embedding",
+            },
+        )
+    )
+
+    categories_processed = 0
+    total_categories = 4
 
     for category, comments_list, sentiment_type in [
         ("positive", positive_comments, DBSentimentType.POSITIVE),
@@ -299,7 +345,25 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         ("suggestion", suggestion_comments, DBSentimentType.SUGGESTION),
         ("neutral", neutral_comments, DBSentimentType.NEUTRAL),
     ]:
+        categories_processed += 1
+        category_progress = 68 + int((categories_processed / total_categories) * 10)
+
         if len(comments_list) >= 2:
+            yield format_sse(
+                ProgressEvent(
+                    stage=AnalysisStage.DETECTING_TOPICS,
+                    message=f"Clustering {category} comments...",
+                    progress=category_progress,
+                    data={
+                        "model_name": "all-MiniLM-L6-v2",
+                        "model_stage": "clustering",
+                        "category": category,
+                        "category_count": len(comments_list),
+                    },
+                )
+            )
+            await asyncio.sleep(0.01)
+
             category_texts = [cd.text for _, cd in comments_list]
             engagements = [cd.like_count for _, cd in comments_list]
             topics = topic_modeler.extract_topics(category_texts, engagements, max_topics=5)
@@ -314,23 +378,33 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
             stage=AnalysisStage.DETECTING_TOPICS,
             message=f"Found {len(all_topics)} topics across all categories",
             progress=80,
+            data={
+                "model_name": "all-MiniLM-L6-v2",
+                "model_stage": "complete",
+                "topics_found": len(all_topics),
+            },
         )
     )
 
-    # Summarization (progress: 80-95%)
-    yield format_sse(
-        ProgressEvent(
-            stage=AnalysisStage.GENERATING_SUMMARIES,
-            message="Generating AI summaries...",
-            progress=82,
-        )
-    )
-
+    # --- AI SUMMARIES (Ollama) ---
+    # Generate natural language summaries for each sentiment category
     summarizer = get_summarizer()
     summaries_data = None
 
+    yield format_sse(
+        ProgressEvent(
+            stage=AnalysisStage.GENERATING_SUMMARIES,
+            message=f"Connecting to {summarizer.model_name}...",
+            progress=81,
+            data={
+                "model_name": summarizer.model_name,
+                "model_stage": "connecting",
+            },
+        )
+    )
+
     if summarizer.is_available():
-        logger.info("[Analysis] Generating AI summaries with Ollama...")
+        logger.info(f"[Analysis] Generating AI summaries with {summarizer.model_name}...")
 
         # Prepare comments for summarization
         positive_texts = [cd.text for _, cd in positive_comments]
@@ -358,6 +432,12 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     stage=AnalysisStage.GENERATING_SUMMARIES,
                     message="Summarizing positive feedback...",
                     progress=85,
+                    data={
+                        "model_name": summarizer.model_name,
+                        "model_stage": "generating",
+                        "category": "positive",
+                        "comment_count": len(positive_texts),
+                    },
                 )
             )
             pos_summary, pos_error = await summarizer.summarize_comments_with_retry(
@@ -379,6 +459,12 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     stage=AnalysisStage.GENERATING_SUMMARIES,
                     message="Summarizing concerns...",
                     progress=88,
+                    data={
+                        "model_name": summarizer.model_name,
+                        "model_stage": "generating",
+                        "category": "negative",
+                        "comment_count": len(negative_texts),
+                    },
                 )
             )
             neg_summary, neg_error = await summarizer.summarize_comments_with_retry(
@@ -400,6 +486,12 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     stage=AnalysisStage.GENERATING_SUMMARIES,
                     message="Summarizing suggestions...",
                     progress=91,
+                    data={
+                        "model_name": summarizer.model_name,
+                        "model_stage": "generating",
+                        "category": "suggestion",
+                        "comment_count": len(suggestion_texts),
+                    },
                 )
             )
             sug_summary, sug_error = await summarizer.summarize_comments_with_retry(
@@ -436,6 +528,10 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                 stage=AnalysisStage.GENERATING_SUMMARIES,
                 message="AI summaries skipped (Ollama not available)",
                 progress=92,
+                data={
+                    "model_name": summarizer.model_name,
+                    "model_stage": "unavailable",
+                },
             )
         )
 
@@ -447,6 +543,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         )
     )
 
+    # --- FINALIZATION ---
     # Update Analysis record with sentiment counts and summaries
     analysis.positive_count = len(positive_comments)
     analysis.negative_count = len(negative_comments)
@@ -458,13 +555,13 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
     analysis.summaries_data = summaries_data
     db.commit()
 
-    # Sort topics by engagement for priority assignment
+    # Rank topics by engagement, assign priority (high/medium/low)
     all_scored = []
     for t, st, cs, cids in all_topics:
         all_scored.append((t.total_engagement, t, st, cs, cids))
     all_scored.sort(key=lambda x: x[0], reverse=True)
 
-    # Calculate max engagement for normalization
+    # Normalize priority scores to 0-1 using log scale
     max_engagement = max((score[0] for score in all_scored), default=1) or 1
 
     topic_objects = []

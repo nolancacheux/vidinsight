@@ -1,3 +1,12 @@
+"""
+Shared Utilities - Common helpers for analysis endpoints.
+
+Contains:
+- Enum mappings (DB <-> API <-> Service layers)
+- SSE formatting helper
+- Response builders for comments, summaries, ABSA
+"""
+
 from api.db import Comment
 from api.db.models import PriorityLevel as DBPriorityLevel
 from api.db.models import SentimentType as DBSentimentType
@@ -16,6 +25,8 @@ from api.models import (
 )
 from api.services import SentimentCategory
 
+# --- Enum Mappings ---
+# Service layer (SentimentCategory) -> Database layer (DBSentimentType)
 SENTIMENT_CATEGORY_TO_DB = {
     SentimentCategory.POSITIVE: DBSentimentType.POSITIVE,
     SentimentCategory.NEGATIVE: DBSentimentType.NEGATIVE,
@@ -23,6 +34,7 @@ SENTIMENT_CATEGORY_TO_DB = {
     SentimentCategory.SUGGESTION: DBSentimentType.SUGGESTION,
 }
 
+# Database layer -> API response layer
 DB_SENTIMENT_TO_API = {
     DBSentimentType.POSITIVE: SentimentType.POSITIVE,
     DBSentimentType.NEGATIVE: SentimentType.NEGATIVE,
@@ -38,6 +50,7 @@ PRIORITY_TO_API = {
 
 
 def format_sse(event: ProgressEvent) -> str:
+    """Format a ProgressEvent as SSE data line. Double newline ends the event."""
     return f"data: {event.model_dump_json()}\n\n"
 
 
@@ -46,6 +59,7 @@ def _comment_response(
     *,
     use_fallback_author: bool,
 ) -> CommentResponse:
+    """Convert DB Comment to API response. Optionally fills 'Unknown' for missing authors."""
     author_name = comment.author_name
     if use_fallback_author and not author_name:
         author_name = "Unknown"
@@ -62,6 +76,7 @@ def _comment_response(
 
 
 def _build_summaries_response(summaries: dict | None) -> SummariesResponse | None:
+    """Convert raw summaries dict (from DB JSON) to typed API response."""
     if not summaries:
         return None
 
@@ -80,6 +95,7 @@ def _build_summaries_response(summaries: dict | None) -> SummariesResponse | Non
 
 
 def _build_absa_response(absa_data: dict | None) -> ABSAResponse | None:
+    """Convert raw ABSA dict (legacy feature) to typed API response."""
     if not absa_data:
         return None
 

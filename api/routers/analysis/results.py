@@ -1,3 +1,11 @@
+"""
+Results Endpoints - Retrieve completed analysis data.
+
+Provides:
+- GET /result/{id}: Full analysis with video, topics, summaries, ML metadata
+- GET /video/{id}/latest: Most recent analysis for a video
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -27,6 +35,7 @@ async def get_analysis_result(
     analysis_id: int,
     db: Session = Depends(get_db),
 ) -> AnalysisResponse:
+    """Get full analysis data including video info, topics, summaries, and ML metrics."""
     analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -34,6 +43,7 @@ async def get_analysis_result(
     video = analysis.video
     topics = db.query(Topic).filter(Topic.analysis_id == analysis.id).all()
 
+    # Build topic responses with sample comments (up to 3 per topic)
     topic_responses = []
     for topic in topics:
         sample_comments = []
@@ -63,6 +73,7 @@ async def get_analysis_result(
             )
         )
 
+    # Build ML metadata with confidence histogram (10 bins from 0-1)
     comments = db.query(Comment).filter(Comment.analysis_id == analysis.id).all()
     confidence_scores = [c.sentiment_score for c in comments if c.sentiment_score is not None]
 
@@ -117,6 +128,7 @@ async def get_latest_analysis_for_video(
     video_id: str,
     db: Session = Depends(get_db),
 ) -> AnalysisResponse | None:
+    """Get the most recent analysis for a video. Returns None if never analyzed."""
     analysis = (
         db.query(Analysis)
         .filter(Analysis.video_id == video_id)

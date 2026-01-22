@@ -1,3 +1,10 @@
+"""
+Search Endpoint - YouTube video search via yt-dlp.
+
+Used by the URL input component to let users search for videos
+instead of pasting URLs directly.
+"""
+
 from fastapi import APIRouter, HTTPException
 
 from api.config import settings
@@ -9,7 +16,7 @@ router = APIRouter()
 
 @router.get("/search", response_model=list[SearchResult])
 async def search_videos(q: str, limit: int | None = None) -> list[SearchResult]:
-    """Search YouTube videos by query."""
+    """Search YouTube videos by query. Min 2 chars required."""
     if not q or len(q.strip()) < 2:
         raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
 

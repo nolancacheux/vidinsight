@@ -1,3 +1,11 @@
+"""
+Comment Endpoints - Retrieve comments for an analysis or video.
+
+Two access patterns:
+- By analysis ID: Stable snapshot (for history viewing)
+- By video ID: Latest analysis (for fresh data)
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
