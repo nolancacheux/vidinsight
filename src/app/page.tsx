@@ -10,6 +10,8 @@ import {
 } from "@/components/layout/dashboard-grid";
 import { SentimentPie } from "@/components/charts/sentiment-pie";
 import { ConfidenceHistogram } from "@/components/charts/confidence-histogram";
+import { EngagementBar } from "@/components/charts/engagement-bar";
+import { TopicBubble } from "@/components/charts/topic-bubble";
 import { MLInfoPanel } from "@/components/analysis/ml-info-panel";
 import { ProgressTerminal } from "@/components/analysis/progress-terminal";
 import { TopicRanking } from "@/components/results/topic-ranking";
@@ -317,17 +319,29 @@ export default function Home() {
                   />
                 </StatsGrid>
 
-                {/* Charts Row - Compact */}
-                <div className="grid grid-cols-2 gap-3 flex-shrink-0 fade-up stagger-2">
+                {/* Charts Row - 4 charts */}
+                <div className="grid grid-cols-4 gap-3 flex-shrink-0 fade-up stagger-2">
                   <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                     <h4 className="text-xs font-semibold text-stone-600 mb-2">Sentiment Distribution</h4>
-                    <div className="h-32">
+                    <div className="h-36">
                       <SentimentPie sentiment={displayResult.sentiment} />
                     </div>
                   </div>
                   <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <h4 className="text-xs font-semibold text-stone-600 mb-2">Engagement by Category</h4>
+                    <div className="h-36">
+                      <EngagementBar sentiment={displayResult.sentiment} />
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <h4 className="text-xs font-semibold text-stone-600 mb-2">Topic Overview</h4>
+                    <div className="h-36">
+                      <TopicBubble topics={displayResult.topics} />
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                     <h4 className="text-xs font-semibold text-stone-600 mb-2">ML Confidence</h4>
-                    <div className="h-32">
+                    <div className="h-36">
                       <ConfidenceHistogram
                         avgConfidence={displayResult.ml_metadata?.avg_confidence || mlMetrics.avgConfidence || 0.85}
                         distribution={displayResult.ml_metadata?.confidence_distribution}

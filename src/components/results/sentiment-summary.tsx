@@ -1,9 +1,12 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { Topic, Comment, SentimentType, SentimentSummaryText } from "@/types";
-import { Heart, ThumbsDown, Lightbulb, Sparkles } from "lucide-react";
+import { Heart, ThumbsDown, Lightbulb, Sparkles, ChevronDown, ChevronUp, ThumbsUp, Percent, Clock } from "lucide-react";
 import { CommentCard } from "./comment-card";
+
+type SortBy = "likes" | "confidence" | "recent";
 
 interface SentimentSectionProps {
   sentiment: SentimentType;
@@ -56,6 +59,34 @@ const sentimentConfig: Record<SentimentType, {
   },
 };
 
+// Topic pill color config based on sentiment
+const topicPillConfig: Record<SentimentType, {
+  bgColor: string;
+  textColor: string;
+  hoverColor: string;
+}> = {
+  positive: {
+    bgColor: "bg-emerald-100",
+    textColor: "text-emerald-700",
+    hoverColor: "hover:bg-emerald-200",
+  },
+  negative: {
+    bgColor: "bg-rose-100",
+    textColor: "text-rose-700",
+    hoverColor: "hover:bg-rose-200",
+  },
+  suggestion: {
+    bgColor: "bg-blue-100",
+    textColor: "text-blue-700",
+    hoverColor: "hover:bg-blue-200",
+  },
+  neutral: {
+    bgColor: "bg-stone-100",
+    textColor: "text-stone-700",
+    hoverColor: "hover:bg-stone-200",
+  },
+};
+
 export function SentimentSection({
   sentiment,
   summary,
@@ -64,9 +95,35 @@ export function SentimentSection({
   onTopicClick,
   maxComments = 5,
 }: SentimentSectionProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>("likes");
+
   const config = sentimentConfig[sentiment];
-  const displayComments = comments.slice(0, maxComments);
+  const pillConfig = topicPillConfig[sentiment];
   const sentimentTopics = topics.filter(t => t.sentiment_category === sentiment);
+
+  // Sort comments based on selected criteria
+  const sortedComments = useMemo(() => {
+    const sorted = [...comments];
+    switch (sortBy) {
+      case "likes":
+        sorted.sort((a, b) => b.like_count - a.like_count);
+        break;
+      case "confidence":
+        sorted.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+        break;
+      case "recent":
+        sorted.sort((a, b) => {
+          const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
+          const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
+          return dateB - dateA;
+        });
+        break;
+    }
+    return sorted;
+  }, [comments, sortBy]);
+
+  const displayComments = expanded ? sortedComments : sortedComments.slice(0, maxComments);
 
   if (comments.length === 0) {
     return null;
@@ -114,7 +171,7 @@ export function SentimentSection({
         </div>
       )}
 
-      {/* Topic Pills */}
+      {/* Topic Pills - Colored by sentiment */}
       {sentimentTopics.length > 0 && (
         <div className="px-5 py-3 border-b border-stone-100">
           <div className="flex flex-wrap gap-2">
@@ -123,12 +180,14 @@ export function SentimentSection({
                 key={topic.id}
                 onClick={() => onTopicClick?.(topic)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium",
-                  "bg-stone-100 text-stone-700 hover:bg-stone-200 transition-colors"
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  pillConfig.bgColor,
+                  pillConfig.textColor,
+                  pillConfig.hoverColor
                 )}
               >
                 {topic.phrase || topic.name}
-                <span className="ml-1.5 text-stone-400">{topic.mention_count}</span>
+                <span className="ml-1.5 opacity-60">{topic.mention_count}</span>
               </button>
             ))}
             {sentimentTopics.length > 5 && (
@@ -136,6 +195,51 @@ export function SentimentSection({
                 +{sentimentTopics.length - 5} more
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Sort Controls */}
+      {comments.length > 3 && (
+        <div className="px-5 py-2 border-b border-stone-100 bg-stone-50/50 flex items-center gap-2">
+          <span className="text-xs text-stone-500">Sort by:</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setSortBy("likes")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors",
+                sortBy === "likes"
+                  ? "bg-stone-200 text-stone-800 font-medium"
+                  : "text-stone-600 hover:bg-stone-100"
+              )}
+            >
+              <ThumbsUp className="h-3 w-3" />
+              Likes
+            </button>
+            <button
+              onClick={() => setSortBy("confidence")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors",
+                sortBy === "confidence"
+                  ? "bg-stone-200 text-stone-800 font-medium"
+                  : "text-stone-600 hover:bg-stone-100"
+              )}
+            >
+              <Percent className="h-3 w-3" />
+              Confidence
+            </button>
+            <button
+              onClick={() => setSortBy("recent")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors",
+                sortBy === "recent"
+                  ? "bg-stone-200 text-stone-800 font-medium"
+                  : "text-stone-600 hover:bg-stone-100"
+              )}
+            >
+              <Clock className="h-3 w-3" />
+              Recent
+            </button>
           </div>
         </div>
       )}
@@ -149,12 +253,25 @@ export function SentimentSection({
         ))}
       </div>
 
-      {/* View More */}
+      {/* Expand/Collapse Toggle */}
       {comments.length > maxComments && (
-        <div className="px-5 py-3 border-t border-stone-100 bg-stone-50/50 text-center">
-          <span className="text-xs text-stone-500">
-            Showing {maxComments} of {comments.length} comments
-          </span>
+        <div className="px-5 py-3 border-t border-stone-100 bg-stone-50/50">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full flex items-center justify-center gap-2 text-xs text-stone-600 hover:text-stone-800 transition-colors"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-4 w-4" />
+                Show Less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4" />
+                Show All {comments.length} Comments
+              </>
+            )}
+          </button>
         </div>
       )}
     </section>

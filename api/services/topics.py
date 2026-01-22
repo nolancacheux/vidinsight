@@ -518,6 +518,68 @@ STOPWORDS = {
     "beaucoup",
     "trop",
     "assez",
+    # Extended French stopwords
+    "tellement",
+    "vraiment",
+    "etait",
+    "serait",
+    "peut",
+    "quand",
+    "etre",
+    "avoir",
+    "faire",
+    "dit",
+    "dire",
+    "fait",
+    "fais",
+    "vais",
+    "voir",
+    "veut",
+    "veux",
+    "cest",
+    "cela",
+    "comme",
+    "donc",
+    "mais",
+    "alors",
+    "ici",
+    "voila",
+    "voici",
+    "car",
+    "parce",
+    "quoi",
+    "apres",
+    "avant",
+    "entre",
+    "chez",
+    "vers",
+    "depuis",
+    "jusque",
+    "selon",
+    "pendant",
+    "contre",
+    "quel",
+    "quelle",
+    "quels",
+    "quelles",
+    "moi",
+    "toi",
+    "lui",
+    "leur",
+    "leurs",
+    "mon",
+    "ton",
+    "son",
+    "notre",
+    "votre",
+    "mes",
+    "tes",
+    "ses",
+    "nos",
+    "vos",
+    "ceux",
+    "celle",
+    "celles",
     # Spanish stopwords
     "el",
     "los",
@@ -526,7 +588,6 @@ STOPWORDS = {
     "unos",
     "unas",
     "es",
-    "son",
     "era",
     "eran",
     "fue",
@@ -541,7 +602,6 @@ STOPWORDS = {
     "con",
     "sin",
     "sobre",
-    "entre",
     "hacia",
     "desde",
     "hasta",
@@ -575,6 +635,76 @@ STOPWORDS = {
     "vosotros",
     "ellos",
     "ellas",
+    # Extended Spanish stopwords
+    "estar",
+    "tener",
+    "hacer",
+    "poder",
+    "algo",
+    "aqui",
+    "alli",
+    "alla",
+    "porque",
+    "pero",
+    "aunque",
+    "sino",
+    "pues",
+    "entonces",
+    "luego",
+    "ahora",
+    "antes",
+    "despues",
+    "mientras",
+    "cada",
+    "tanto",
+    "cuanto",
+    "cuales",
+    "quienes",
+    "cuyo",
+    "cuya",
+    "cuyos",
+    "cuyas",
+    "nada",
+    "nadie",
+    "alguno",
+    "alguna",
+    "algunos",
+    "algunas",
+    "ninguno",
+    "ninguna",
+    "ningunos",
+    "ningunas",
+    "todo",
+    "toda",
+    "todos",
+    "todas",
+    "poco",
+    "poca",
+    "pocos",
+    "pocas",
+    "mucho",
+    "mucha",
+    "muchos",
+    "muchas",
+    "demasiado",
+    "bastante",
+    "tan",
+    "asi",
+    "bueno",
+    "buena",
+    "malo",
+    "mala",
+    "mejor",
+    "peor",
+    "primer",
+    "primero",
+    "primera",
+    "segundo",
+    "segunda",
+    "ultimo",
+    "ultima",
+    "unico",
+    "unica",
 }
 
 # Semantic topic themes for grouping - maps theme to keywords that indicate it
@@ -840,6 +970,74 @@ def validate_keywords(keywords: list[str]) -> list[str]:
     return valid
 
 
+def generate_topic_phrase(
+    name: str, keywords: list[str], sample_texts: list[str] | None = None
+) -> str:
+    """
+    Generate a meaningful phrase for a topic.
+
+    Strategy:
+    1. Use theme name if descriptive (not generic like "Topic 1")
+    2. Extract most frequent bigram from sample texts
+    3. Fall back to capitalized top keyword
+    4. Never return raw keyword concatenation
+    """
+    # Check if name is already descriptive (not generic)
+    if name and not name.lower().startswith("topic ") and len(name) > 3:
+        # Theme names from format_theme_name are already good
+        if any(
+            theme_word in name.lower()
+            for theme_word in [
+                "quality",
+                "memories",
+                "emotional",
+                "lyrics",
+                "performance",
+                "appreciation",
+                "discovery",
+                "feedback",
+                "production",
+                "engagement",
+            ]
+        ):
+            return name
+
+    # Try to extract meaningful bigrams from sample texts
+    if sample_texts and len(sample_texts) >= 2:
+        bigram_counts: Counter = Counter()
+        for text in sample_texts[:10]:  # Limit to first 10 samples
+            # Extract words, filter stopwords
+            words = [
+                w.lower()
+                for w in re.findall(r"\b[a-zA-ZÀ-ÿ]{3,}\b", text)
+                if w.lower() not in STOPWORDS
+            ]
+            # Create bigrams
+            for i in range(len(words) - 1):
+                bigram = f"{words[i]} {words[i + 1]}"
+                bigram_counts[bigram] += 1
+
+        # Get the most common bigram that appears at least twice
+        common_bigrams = [
+            bigram for bigram, count in bigram_counts.most_common(5) if count >= 2
+        ]
+        if common_bigrams:
+            # Capitalize each word
+            return " ".join(word.capitalize() for word in common_bigrams[0].split())
+
+    # Fall back to top keyword(s) - but make it readable
+    valid_keywords = [kw for kw in keywords if kw.lower() not in STOPWORDS]
+    if valid_keywords:
+        # Return just the top keyword, capitalized
+        return valid_keywords[0].capitalize()
+
+    # Last resort: use the name if it exists
+    if name:
+        return name.capitalize()
+
+    return "General Discussion"
+
+
 def simple_topic_clustering(
     texts: list[str],
     engagement_scores: list[int],
@@ -1036,13 +1234,19 @@ class TopicModeler:
                 logger.info(f"[Topics] Using cached embedding model (loaded {age:.0f}s ago)")
         return self._embedding_model
 
-    def _create_topic_model(self, nr_topics: int | str = "auto") -> "BERTopic":
+    def _create_topic_model(
+        self, nr_topics: int | str = "auto", num_docs: int = 100
+    ) -> "BERTopic":
         from sklearn.feature_extraction.text import CountVectorizer
+
+        # Dynamic min_df: use 1 for small datasets to prevent "max_df" errors
+        min_df = 1 if num_docs < 20 else 2
 
         # Use custom vectorizer with stopword filtering
         vectorizer = CountVectorizer(
             stop_words=list(STOPWORDS),
-            min_df=2,
+            min_df=min_df,
+            max_df=0.95,  # Filter overly common terms
             ngram_range=(1, 2),
         )
         return BERTopic(
@@ -1105,13 +1309,26 @@ class TopicModeler:
             )
             return simple_topic_clustering(texts, engagement_scores, sentiments, max_topics)
 
+        # Pre-clustering vocabulary validation: count unique non-stopword tokens
+        unique_tokens = set()
+        for text in texts:
+            text_words = re.findall(r"\b[a-zA-ZÀ-ÿ]{3,}\b", text.lower())
+            unique_tokens.update(w for w in text_words if w not in STOPWORDS)
+
+        if len(unique_tokens) < 10:
+            logger.info(
+                f"[Topics] Insufficient vocabulary: {len(unique_tokens)} unique words, "
+                "need at least 10. Using theme fallback."
+            )
+            return simple_topic_clustering(texts, engagement_scores, sentiments, max_topics)
+
         nr_topics = min(max_topics, max(2, len(texts) // min_topic_size))
-        logger.info(f"[Topics] Target topics: {nr_topics}")
+        logger.info(f"[Topics] Target topics: {nr_topics}, vocabulary size: {len(unique_tokens)}")
 
         try:
             logger.info("[Topics] Generating embeddings...")
             embed_start = time.time()
-            topic_model = self._create_topic_model(nr_topics=nr_topics)
+            topic_model = self._create_topic_model(nr_topics=nr_topics, num_docs=len(texts))
             topics, _ = topic_model.fit_transform(texts)
             logger.info(f"[Topics] BERTopic fit complete in {time.time() - embed_start:.2f}s")
 
@@ -1119,6 +1336,16 @@ class TopicModeler:
             topic_info = topic_info[topic_info["Topic"] != -1]
             logger.info(f"[Topics] Found {len(topic_info)} clusters (excluding noise)")
 
+        except ValueError as e:
+            # Catch "max_df corresponds to" and "empty vocabulary" errors
+            err_msg = str(e).lower()
+            if "max_df" in err_msg or "empty vocabulary" in err_msg or "after pruning" in err_msg:
+                logger.warning(
+                    f"[Topics] Vectorizer error ({e}), falling back to theme clustering"
+                )
+            else:
+                logger.warning(f"[Topics] ML clustering failed: {e}, using theme fallback")
+            return simple_topic_clustering(texts, engagement_scores, sentiments, max_topics)
         except Exception as e:
             logger.warning(f"[Topics] ML clustering failed: {e}, using theme fallback")
             return simple_topic_clustering(texts, engagement_scores, sentiments, max_topics)

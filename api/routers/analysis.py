@@ -42,6 +42,7 @@ from api.services import (
     get_topic_modeler,
 )
 from api.services.summarizer import get_summarizer
+from api.services.topics import generate_topic_phrase
 
 logger = logging.getLogger(__name__)
 
@@ -367,6 +368,8 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
 
         summaries_data = {}
 
+        ollama_errors = []
+
         if positive_texts:
             yield format_sse(
                 ProgressEvent(
@@ -375,7 +378,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     progress=85,
                 )
             )
-            pos_summary = await summarizer.summarize_comments(
+            pos_summary, pos_error = await summarizer.summarize_comments_with_retry(
                 positive_texts, "positive", positive_topic_names
             )
             if pos_summary:
@@ -385,6 +388,8 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     "topic_count": len(positive_topic_names),
                     "comment_count": len(positive_texts),
                 }
+            elif pos_error:
+                ollama_errors.append(f"positive: {pos_error}")
 
         if negative_texts:
             yield format_sse(
@@ -394,7 +399,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     progress=88,
                 )
             )
-            neg_summary = await summarizer.summarize_comments(
+            neg_summary, neg_error = await summarizer.summarize_comments_with_retry(
                 negative_texts, "negative", negative_topic_names
             )
             if neg_summary:
@@ -404,6 +409,8 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     "topic_count": len(negative_topic_names),
                     "comment_count": len(negative_texts),
                 }
+            elif neg_error:
+                ollama_errors.append(f"negative: {neg_error}")
 
         if suggestion_texts:
             yield format_sse(
@@ -413,7 +420,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     progress=91,
                 )
             )
-            sug_summary = await summarizer.summarize_comments(
+            sug_summary, sug_error = await summarizer.summarize_comments_with_retry(
                 suggestion_texts, "suggestion", suggestion_topic_names
             )
             if sug_summary:
@@ -423,9 +430,23 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                     "topic_count": len(suggestion_topic_names),
                     "comment_count": len(suggestion_texts),
                 }
+            elif sug_error:
+                ollama_errors.append(f"suggestion: {sug_error}")
 
         summaries_data["generated_by"] = summarizer.model_name
-        logger.info("[Analysis] AI summaries generated successfully")
+
+        if ollama_errors:
+            logger.warning(f"[Analysis] Some AI summaries failed: {ollama_errors}")
+            yield format_sse(
+                ProgressEvent(
+                    stage=AnalysisStage.GENERATING_SUMMARIES,
+                    message=f"Some summaries failed ({len(ollama_errors)} errors)",
+                    progress=93,
+                    data={"ollama_errors": ollama_errors},
+                )
+            )
+        else:
+            logger.info("[Analysis] AI summaries generated successfully")
     else:
         logger.info("[Analysis] Ollama not available, skipping AI summaries")
         yield format_sse(
@@ -476,8 +497,9 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         else:
             priority = DBPriorityLevel.LOW
 
-        # Generate phrase from keywords
-        phrase = " ".join(t.keywords[:3]) if t.keywords else t.name
+        # Generate meaningful phrase using semantic analysis
+        sample_texts = [comments_data[i].text for i in t.comment_indices[:10]] if t.comment_indices else []
+        phrase = generate_topic_phrase(t.name, t.keywords, sample_texts)
 
         topic = Topic(
             analysis_id=analysis.id,

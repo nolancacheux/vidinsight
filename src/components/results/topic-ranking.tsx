@@ -1,13 +1,42 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { Topic, SentimentType } from "@/types";
+import type { Topic, SentimentType, PriorityLevel } from "@/types";
 import { Heart, ThumbsDown, Lightbulb, MessageCircle } from "lucide-react";
 
 interface TopicRankingProps {
   topics: Topic[];
   onTopicClick: (topic: Topic) => void;
   selectedTopicId?: number | null;
+}
+
+// Priority badge component
+function PriorityBadge({ priority }: { priority: PriorityLevel }) {
+  const config: Record<PriorityLevel, { label: string; className: string }> = {
+    high: {
+      label: "High",
+      className: "bg-rose-100 text-rose-700 border-rose-200",
+    },
+    medium: {
+      label: "Med",
+      className: "bg-amber-100 text-amber-700 border-amber-200",
+    },
+    low: {
+      label: "Low",
+      className: "bg-stone-100 text-stone-600 border-stone-200",
+    },
+  };
+
+  const { label, className } = config[priority];
+
+  return (
+    <span className={cn(
+      "px-1.5 py-0.5 text-[10px] font-medium rounded border",
+      className
+    )}>
+      {label}
+    </span>
+  );
 }
 
 const sentimentConfig: Record<SentimentType, {
@@ -115,9 +144,14 @@ export function TopicRanking({ topics, onTopicClick, selectedTopicId }: TopicRan
                         #{idx + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">
-                          {topic.phrase || topic.name}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-stone-800 truncate flex-1">
+                            {topic.phrase || topic.name}
+                          </p>
+                          {topic.priority && (
+                            <PriorityBadge priority={topic.priority} />
+                          )}
+                        </div>
                         <p className="text-xs text-stone-500 mt-0.5">
                           {topic.mention_count} mentions
                           {topic.total_engagement > 0 && (

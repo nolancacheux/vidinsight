@@ -83,7 +83,7 @@ export function TopicSlideOver({ topic, comments, open, onOpenChange }: TopicSli
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader className="pb-4 border-b">
           <div className="flex items-center gap-3">
             <div className={cn(
