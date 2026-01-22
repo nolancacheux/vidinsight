@@ -22,9 +22,8 @@ class AnalysisStage(str, Enum):
     FETCHING_METADATA = "fetching_metadata"
     EXTRACTING_COMMENTS = "extracting_comments"
     ANALYZING_SENTIMENT = "analyzing_sentiment"
-    ANALYZING_ASPECTS = "analyzing_aspects"
     DETECTING_TOPICS = "detecting_topics"
-    GENERATING_INSIGHTS = "generating_insights"
+    GENERATING_SUMMARIES = "generating_summaries"
     COMPLETE = "complete"
     ERROR = "error"
 
@@ -64,13 +63,14 @@ class CommentResponse(BaseModel):
 class TopicResponse(BaseModel):
     id: int
     name: str
+    phrase: str  # Human-readable phrase extracted from BERTopic
     sentiment_category: SentimentType
     mention_count: int
     total_engagement: int
     priority: PriorityLevel | None = None
     priority_score: float = 0.0
     keywords: list[str] = Field(default_factory=list)
-    recommendation: str | None = None
+    comment_ids: list[str] = Field(default_factory=list)  # IDs of comments in this topic
     sample_comments: list[CommentResponse] = Field(default_factory=list)
 
 
@@ -92,6 +92,24 @@ class MLMetadata(BaseModel):
     confidence_distribution: list[float] = Field(default_factory=list)
 
 
+class SentimentSummaryText(BaseModel):
+    """AI-generated summary for a sentiment category."""
+
+    category: SentimentType
+    summary: str  # 2-3 sentence AI-generated summary
+    topic_count: int
+    comment_count: int
+
+
+class SummariesResponse(BaseModel):
+    """AI-generated summaries for each sentiment category."""
+
+    positive: SentimentSummaryText | None = None
+    negative: SentimentSummaryText | None = None
+    suggestion: SentimentSummaryText | None = None
+    generated_by: str = "ollama"  # Model used for generation
+
+
 class AnalysisResponse(BaseModel):
     id: int
     video: VideoResponse
@@ -99,9 +117,9 @@ class AnalysisResponse(BaseModel):
     analyzed_at: datetime
     sentiment: SentimentSummary
     topics: list[TopicResponse] = Field(default_factory=list)
-    recommendations: list[str] = Field(default_factory=list)
+    summaries: SummariesResponse | None = None  # AI-generated summaries
     ml_metadata: MLMetadata | None = None
-    absa: "ABSAResponse | None" = None
+    absa: "ABSAResponse | None" = None  # Kept for backward compatibility
 
 
 class ProgressEvent(BaseModel):

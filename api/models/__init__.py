@@ -15,7 +15,9 @@ from .schemas import (
     RecommendationResponse,
     SearchResult,
     SentimentSummary,
+    SentimentSummaryText,
     SentimentType,
+    SummariesResponse,
     TopicResponse,
     VideoResponse,
 )
@@ -26,6 +28,8 @@ __all__ = [
     "CommentResponse",
     "TopicResponse",
     "SentimentSummary",
+    "SentimentSummaryText",
+    "SummariesResponse",
     "MLMetadata",
     "AnalysisResponse",
     "ProgressEvent",
