@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -200,13 +201,14 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
     # Stream ML progress with real metrics
     sentiment_results = []
     total_tokens = 0
-    last_update = 0
+    last_batch_num = -1
 
     for result, batch_progress in analyzer.analyze_batch_with_progress(texts):
         sentiment_results.append(result)
-        total_tokens += batch_progress.tokens_in_batch // max(
-            1, batch_progress.processed - last_update
-        )
+        # Sum tokens once per batch (avoid double counting)
+        if batch_progress.batch_num != last_batch_num:
+            total_tokens += batch_progress.tokens_in_batch
+            last_batch_num = batch_progress.batch_num
 
         # Send progress update every 10 comments or on batch completion
         if batch_progress.processed % 10 == 0 or batch_progress.processed == batch_progress.total:
@@ -232,7 +234,6 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
                 )
             )
             await asyncio.sleep(0.01)  # Small yield to allow SSE to flush
-            last_update = batch_progress.processed
 
     analysis_time = time.perf_counter() - analysis_start
 
@@ -251,9 +252,22 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         )
     )
 
-    db.query(Comment).filter(Comment.video_id == video.id).delete()
+    # Create Analysis record early so we can associate comments with it
+    # Calculate avg confidence from sentiment results
+    confidence_scores = [sr.score for sr in sentiment_results if sr.score is not None]
+    avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+
+    analysis = Analysis(
+        video_id=video.id,
+        total_comments=len(comments_data),
+        ml_tokens=total_tokens,
+        ml_processing_time=analysis_time,
+        ml_avg_confidence=avg_confidence,
+    )
+    db.add(analysis)
     db.commit()
 
+    # Store comments with unique IDs scoped to this analysis
     comment_objects = []
     for cd, sr in zip(comments_data, sentiment_results):
         sentiment_map = {
@@ -262,9 +276,12 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
             SentimentCategory.NEUTRAL: DBSentimentType.NEUTRAL,
             SentimentCategory.SUGGESTION: DBSentimentType.SUGGESTION,
         }
+        # Use analysis_id prefix to create unique comment IDs per analysis
+        unique_comment_id = f"{analysis.id}_{cd.id}"
         comment = Comment(
-            id=cd.id,
+            id=unique_comment_id,
             video_id=video.id,
+            analysis_id=analysis.id,
             author_name=cd.author_name,
             author_profile_image_url=cd.author_profile_image_url,
             text=cd.text,
@@ -465,20 +482,15 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         )
     )
 
-    # Create Analysis record
-    analysis = Analysis(
-        video_id=video.id,
-        total_comments=len(comments_data),
-        positive_count=len(positive_comments),
-        negative_count=len(negative_comments),
-        neutral_count=len(neutral_comments),
-        suggestion_count=len(suggestion_comments),
-        positive_engagement=sum(cd.like_count for _, cd in positive_comments),
-        negative_engagement=sum(cd.like_count for _, cd in negative_comments),
-        suggestion_engagement=sum(cd.like_count for _, cd in suggestion_comments),
-        summaries_data=summaries_data,
-    )
-    db.add(analysis)
+    # Update Analysis record with sentiment counts and summaries
+    analysis.positive_count = len(positive_comments)
+    analysis.negative_count = len(negative_comments)
+    analysis.neutral_count = len(neutral_comments)
+    analysis.suggestion_count = len(suggestion_comments)
+    analysis.positive_engagement = sum(cd.like_count for _, cd in positive_comments)
+    analysis.negative_engagement = sum(cd.like_count for _, cd in negative_comments)
+    analysis.suggestion_engagement = sum(cd.like_count for _, cd in suggestion_comments)
+    analysis.summaries_data = summaries_data
     db.commit()
 
     # Sort topics by engagement for priority assignment
@@ -486,6 +498,9 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
     for t, st, cs, cids in all_topics:
         all_scored.append((t.total_engagement, t, st, cs, cids))
     all_scored.sort(key=lambda x: x[0], reverse=True)
+
+    # Calculate max engagement for normalization
+    max_engagement = max((score[0] for score in all_scored), default=1) or 1
 
     topic_objects = []
     for idx, (_, t, st, cs, cids) in enumerate(all_scored):
@@ -497,8 +512,18 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         else:
             priority = DBPriorityLevel.LOW
 
-        # Generate meaningful phrase using semantic analysis
-        sample_texts = [comments_data[i].text for i in t.comment_indices[:10]] if t.comment_indices else []
+        # Normalize priority_score to 0-1 range using log scale
+        raw_score = t.total_engagement + t.mention_count
+        max_score = (
+            max_engagement + max(t.mention_count for _, t, _, _, _ in all_scored)
+            if all_scored
+            else 1
+        )
+        normalized_score = math.log1p(raw_score) / math.log1p(max_score) if max_score > 0 else 0.0
+
+        # Generate meaningful phrase using category-local sample texts (not global indices)
+        # cs contains the actual comment objects for this topic
+        sample_texts = [c.text for c in cs[:10]] if cs else []
         phrase = generate_topic_phrase(t.name, t.keywords, sample_texts)
 
         topic = Topic(
@@ -509,7 +534,7 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
             mention_count=t.mention_count,
             total_engagement=t.total_engagement,
             priority=priority,
-            priority_score=t.total_engagement,
+            priority_score=normalized_score,
             keywords=t.keywords,
             comment_ids=cids,
         )
@@ -613,10 +638,9 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
             )
         )
 
-    # Calculate ML metadata from comments
-    comments = db.query(Comment).filter(Comment.video_id == video.id).all()
+    # Get ML metadata from analysis-scoped comments
+    comments = db.query(Comment).filter(Comment.analysis_id == analysis.id).all()
     confidence_scores = [c.sentiment_score for c in comments if c.sentiment_score is not None]
-    avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.85
 
     # Build confidence distribution (10 bins: 0-10%, 10-20%, ..., 90-100%)
     confidence_distribution = [0] * 10
@@ -624,11 +648,13 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
         bin_idx = min(int(score * 10), 9)
         confidence_distribution[bin_idx] += 1
 
+    # Use stored ML metrics when available, fall back to computed values
     ml_metadata = MLMetadata(
         model_name="nlptown/bert-base-multilingual-uncased-sentiment",
-        total_tokens=sum(len(c.text.split()) for c in comments) * 2,  # Approximate tokens
-        avg_confidence=avg_confidence,
-        processing_time_seconds=0.0,  # Not tracked currently
+        total_tokens=analysis.ml_tokens or sum(len(c.text.split()) for c in comments) * 2,
+        avg_confidence=analysis.ml_avg_confidence
+        or (sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0),
+        processing_time_seconds=analysis.ml_processing_time or 0.0,
         confidence_distribution=confidence_distribution,
     )
 
@@ -768,12 +794,58 @@ async def get_latest_analysis_for_video(video_id: str, db: Session = Depends(get
     return await get_analysis_result(analysis.id, db)
 
 
-@router.get("/video/{video_id}/comments", response_model=list[CommentResponse])
-async def get_comments_by_video(video_id: str, db: Session = Depends(get_db)):
-    """Get all comments for a video."""
+@router.get("/result/{analysis_id}/comments", response_model=list[CommentResponse])
+async def get_comments_by_analysis(analysis_id: int, db: Session = Depends(get_db)):
+    """Get all comments for a specific analysis (stable history view)."""
+    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
     comments = (
         db.query(Comment)
-        .filter(Comment.video_id == video_id)
+        .filter(Comment.analysis_id == analysis_id)
+        .order_by(Comment.like_count.desc())
+        .all()
+    )
+
+    sentiment_map = {
+        DBSentimentType.POSITIVE: SentimentType.POSITIVE,
+        DBSentimentType.NEGATIVE: SentimentType.NEGATIVE,
+        DBSentimentType.NEUTRAL: SentimentType.NEUTRAL,
+        DBSentimentType.SUGGESTION: SentimentType.SUGGESTION,
+    }
+
+    return [
+        CommentResponse(
+            id=c.id,
+            text=c.text,
+            author_name=c.author_name or "Unknown",
+            like_count=c.like_count,
+            sentiment=sentiment_map.get(c.sentiment),
+            confidence=c.sentiment_score,
+            published_at=c.published_at,
+        )
+        for c in comments
+    ]
+
+
+@router.get("/video/{video_id}/comments", response_model=list[CommentResponse])
+async def get_comments_by_video(video_id: str, db: Session = Depends(get_db)):
+    """Get all comments for a video (from latest analysis)."""
+    # Get the latest analysis for this video
+    latest_analysis = (
+        db.query(Analysis)
+        .filter(Analysis.video_id == video_id)
+        .order_by(Analysis.analyzed_at.desc())
+        .first()
+    )
+
+    if not latest_analysis:
+        return []
+
+    comments = (
+        db.query(Comment)
+        .filter(Comment.analysis_id == latest_analysis.id)
         .order_by(Comment.like_count.desc())
         .all()
     )
