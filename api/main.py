@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("AI-Video-Comment-Analyzer API")
+    logger.info("Starting AI-Video-Comment-Analyzer...")
     logger.info("Initializing database...")
     init_db()
     logger.info("Database ready")
