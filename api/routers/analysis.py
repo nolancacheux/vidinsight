@@ -26,7 +26,9 @@ from api.models import (
     RecommendationResponse,
     SearchResult,
     SentimentSummary,
+    SentimentSummaryText,
     SentimentType,
+    SummariesResponse,
     TopicResponse,
     VideoResponse,
 )
@@ -36,12 +38,10 @@ from api.services import (
     VideoNotFoundError,
     YouTubeExtractionError,
     YouTubeExtractor,
-    aggregate_absa_results,
-    generate_insight_report,
-    get_absa_analyzer,
     get_sentiment_analyzer,
     get_topic_modeler,
 )
+from api.services.summarizer import get_summarizer
 
 logger = logging.getLogger(__name__)
 
@@ -298,71 +298,12 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         if sr.category == SentimentCategory.NEUTRAL
     ]
 
-    # ABSA (Aspect-Based Sentiment Analysis)
-    yield format_sse(
-        ProgressEvent(
-            stage=AnalysisStage.ANALYZING_ASPECTS,
-            message="Analyzing aspects (content, audio, production, pacing, presenter)...",
-            progress=66,
-        )
-    )
-
-    absa_start = time.perf_counter()
-    absa_analyzer = get_absa_analyzer()
-    absa_results = []
-    engagement_weights = []
-
-    for i, (result, progress) in enumerate(absa_analyzer.analyze_batch_with_progress(texts)):
-        absa_results.append(result)
-        engagement_weights.append(
-            float(comments_data[i].like_count + 1)
-        )  # +1 to avoid zero weights
-
-        if progress.processed % 10 == 0 or progress.processed == progress.total:
-            elapsed = time.perf_counter() - absa_start
-            speed = progress.processed / elapsed if elapsed > 0 else 0
-            progress_pct = 66 + int((progress.processed / progress.total) * 4)
-
-            yield format_sse(
-                ProgressEvent(
-                    stage=AnalysisStage.ANALYZING_ASPECTS,
-                    message=f"Aspect analysis: {progress.processed}/{progress.total} comments",
-                    progress=progress_pct,
-                    data={
-                        "absa_processed": progress.processed,
-                        "absa_total": progress.total,
-                        "absa_speed": round(speed, 1),
-                        "absa_batch": progress.batch_num,
-                        "absa_total_batches": progress.total_batches,
-                        "absa_elapsed_seconds": round(elapsed, 2),
-                    },
-                )
-            )
-            await asyncio.sleep(0.01)
-
-    absa_time = time.perf_counter() - absa_start
-
-    # Aggregate ABSA results
-    absa_aggregation = aggregate_absa_results(absa_results, engagement_weights)
-    insight_report = generate_insight_report(video.id, absa_aggregation)
-
-    yield format_sse(
-        ProgressEvent(
-            stage=AnalysisStage.ANALYZING_ASPECTS,
-            message=f"Aspect analysis complete in {absa_time:.1f}s (health score: {absa_aggregation.health_score:.0f}/100)",
-            progress=70,
-            data={
-                "absa_health_score": absa_aggregation.health_score,
-                "absa_dominant_aspects": [a.value for a in absa_aggregation.dominant_aspects],
-            },
-        )
-    )
-
+    # Topic Detection (progress: 65-80%)
     yield format_sse(
         ProgressEvent(
             stage=AnalysisStage.DETECTING_TOPICS,
-            message="Detecting topics...",
-            progress=72,
+            message="Detecting topics with BERTopic...",
+            progress=68,
         )
     )
 
@@ -375,74 +316,135 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         ("suggestion", suggestion_comments, DBSentimentType.SUGGESTION),
         ("neutral", neutral_comments, DBSentimentType.NEUTRAL),
     ]:
-        # Lowered from 3 to 2 to allow topic extraction for smaller categories
         if len(comments_list) >= 2:
-            texts = [cd.text for _, cd in comments_list]
+            category_texts = [cd.text for _, cd in comments_list]
             engagements = [cd.like_count for _, cd in comments_list]
-            topics = topic_modeler.extract_topics(texts, engagements, max_topics=5)
+            topics = topic_modeler.extract_topics(category_texts, engagements, max_topics=5)
             for t in topics:
+                # Map comment indices back to actual comment objects
                 t_comments = [comments_list[i][0] for i in t.comment_indices]
-                all_topics.append((t, sentiment_type, t_comments))
+                t_comment_ids = [comments_list[i][0].id for i in t.comment_indices]
+                all_topics.append((t, sentiment_type, t_comments, t_comment_ids))
 
     yield format_sse(
         ProgressEvent(
-            stage=AnalysisStage.GENERATING_INSIGHTS,
-            message="Generating insights and recommendations...",
-            progress=85,
+            stage=AnalysisStage.DETECTING_TOPICS,
+            message=f"Found {len(all_topics)} topics across all categories",
+            progress=80,
         )
     )
 
-    # Serialize ABSA data for storage
-    absa_json = {
-        "aggregation": {
-            "total_comments": absa_aggregation.total_comments,
-            "health_score": absa_aggregation.health_score,
-            "dominant_aspects": [a.value for a in absa_aggregation.dominant_aspects],
-            "sentiment_distribution": {
-                k.value: v for k, v in absa_aggregation.sentiment_distribution.items()
-            },
-            "aspect_stats": {
-                aspect.value: {
-                    "mention_count": stats.mention_count,
-                    "mention_percentage": stats.mention_percentage,
-                    "avg_confidence": stats.avg_confidence,
-                    "positive_count": stats.positive_count,
-                    "negative_count": stats.negative_count,
-                    "neutral_count": stats.neutral_count,
-                    "sentiment_score": stats.sentiment_score,
-                }
-                for aspect, stats in absa_aggregation.aspect_stats.items()
-            },
-        },
-        "insight_report": {
-            "video_id": insight_report.video_id,
-            "generated_at": insight_report.generated_at.isoformat(),
-            "summary": insight_report.summary,
-            "key_metrics": insight_report.key_metrics,
-            "health": {
-                "overall_score": insight_report.health.overall_score,
-                "trend": insight_report.health.trend,
-                "strengths": [a.value for a in insight_report.health.strengths],
-                "weaknesses": [a.value for a in insight_report.health.weaknesses],
-                "aspect_scores": {
-                    a.value: s for a, s in insight_report.health.aspect_scores.items()
-                },
-            },
-            "recommendations": [
-                {
-                    "aspect": rec.aspect.value,
-                    "priority": rec.priority.value,
-                    "rec_type": rec.rec_type.value,
-                    "title": rec.title,
-                    "description": rec.description,
-                    "evidence": rec.evidence,
-                    "action_items": rec.action_items,
-                }
-                for rec in insight_report.recommendations
-            ],
-        },
-    }
+    # Summarization (progress: 80-95%)
+    yield format_sse(
+        ProgressEvent(
+            stage=AnalysisStage.GENERATING_SUMMARIES,
+            message="Generating AI summaries...",
+            progress=82,
+        )
+    )
 
+    summarizer = get_summarizer()
+    summaries_data = None
+
+    if summarizer.is_available():
+        logger.info("[Analysis] Generating AI summaries with Ollama...")
+
+        # Prepare comments for summarization
+        positive_texts = [cd.text for _, cd in positive_comments]
+        negative_texts = [cd.text for _, cd in negative_comments]
+        suggestion_texts = [cd.text for _, cd in suggestion_comments]
+
+        # Get positive topics for context
+        positive_topic_names = [
+            t.name for t, st, _, _ in all_topics if st == DBSentimentType.POSITIVE
+        ]
+        negative_topic_names = [
+            t.name for t, st, _, _ in all_topics if st == DBSentimentType.NEGATIVE
+        ]
+        suggestion_topic_names = [
+            t.name for t, st, _, _ in all_topics if st == DBSentimentType.SUGGESTION
+        ]
+
+        summaries_data = {}
+
+        if positive_texts:
+            yield format_sse(
+                ProgressEvent(
+                    stage=AnalysisStage.GENERATING_SUMMARIES,
+                    message="Summarizing positive feedback...",
+                    progress=85,
+                )
+            )
+            pos_summary = await summarizer.summarize_comments(
+                positive_texts, "positive", positive_topic_names
+            )
+            if pos_summary:
+                summaries_data["positive"] = {
+                    "category": "positive",
+                    "summary": pos_summary,
+                    "topic_count": len(positive_topic_names),
+                    "comment_count": len(positive_texts),
+                }
+
+        if negative_texts:
+            yield format_sse(
+                ProgressEvent(
+                    stage=AnalysisStage.GENERATING_SUMMARIES,
+                    message="Summarizing concerns...",
+                    progress=88,
+                )
+            )
+            neg_summary = await summarizer.summarize_comments(
+                negative_texts, "negative", negative_topic_names
+            )
+            if neg_summary:
+                summaries_data["negative"] = {
+                    "category": "negative",
+                    "summary": neg_summary,
+                    "topic_count": len(negative_topic_names),
+                    "comment_count": len(negative_texts),
+                }
+
+        if suggestion_texts:
+            yield format_sse(
+                ProgressEvent(
+                    stage=AnalysisStage.GENERATING_SUMMARIES,
+                    message="Summarizing suggestions...",
+                    progress=91,
+                )
+            )
+            sug_summary = await summarizer.summarize_comments(
+                suggestion_texts, "suggestion", suggestion_topic_names
+            )
+            if sug_summary:
+                summaries_data["suggestion"] = {
+                    "category": "suggestion",
+                    "summary": sug_summary,
+                    "topic_count": len(suggestion_topic_names),
+                    "comment_count": len(suggestion_texts),
+                }
+
+        summaries_data["generated_by"] = summarizer.model_name
+        logger.info("[Analysis] AI summaries generated successfully")
+    else:
+        logger.info("[Analysis] Ollama not available, skipping AI summaries")
+        yield format_sse(
+            ProgressEvent(
+                stage=AnalysisStage.GENERATING_SUMMARIES,
+                message="AI summaries skipped (Ollama not available)",
+                progress=92,
+            )
+        )
+
+    yield format_sse(
+        ProgressEvent(
+            stage=AnalysisStage.GENERATING_SUMMARIES,
+            message="Finalizing analysis...",
+            progress=95,
+        )
+    )
+
+    # Create Analysis record
     analysis = Analysis(
         video_id=video.id,
         total_comments=len(comments_data),
@@ -453,39 +455,19 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         positive_engagement=sum(cd.like_count for _, cd in positive_comments),
         negative_engagement=sum(cd.like_count for _, cd in negative_comments),
         suggestion_engagement=sum(cd.like_count for _, cd in suggestion_comments),
-        absa_data=absa_json,
+        summaries_data=summaries_data,
     )
     db.add(analysis)
     db.commit()
 
-    negative_topics = [(t, st, cs) for t, st, cs in all_topics if st == DBSentimentType.NEGATIVE]
-    negative_topics.sort(key=lambda x: x[0].total_engagement, reverse=True)
-
-    suggestion_topics = [
-        (t, st, cs) for t, st, cs in all_topics if st == DBSentimentType.SUGGESTION
-    ]
-    suggestion_topics.sort(key=lambda x: x[0].total_engagement, reverse=True)
-
-    all_sorted = negative_topics + suggestion_topics
-    recommendations = []
-
-    for i, (topic_result, sentiment_type, _) in enumerate(all_sorted[:5]):
-        if sentiment_type == DBSentimentType.NEGATIVE:
-            rec = f"Address criticism about '{topic_result.name}' ({topic_result.total_engagement} engagement)"
-        else:
-            rec = f"Consider suggestion: '{topic_result.name}' ({topic_result.total_engagement} engagement)"
-        recommendations.append(rec)
-
-    analysis.recommendations = recommendations
-    db.commit()
-
-    topic_objects = []
+    # Sort topics by engagement for priority assignment
     all_scored = []
-    for t, st, cs in all_topics:
-        all_scored.append((t.total_engagement, t, st, cs))
+    for t, st, cs, cids in all_topics:
+        all_scored.append((t.total_engagement, t, st, cs, cids))
     all_scored.sort(key=lambda x: x[0], reverse=True)
 
-    for idx, (_, t, st, cs) in enumerate(all_scored):
+    topic_objects = []
+    for idx, (_, t, st, cs, cids) in enumerate(all_scored):
         percentile = idx / max(len(all_scored), 1)
         if percentile < 0.2:
             priority = DBPriorityLevel.HIGH
@@ -494,19 +476,25 @@ async def run_analysis(url: str, db: Session) -> AsyncGenerator[str, None]:
         else:
             priority = DBPriorityLevel.LOW
 
+        # Generate phrase from keywords
+        phrase = " ".join(t.keywords[:3]) if t.keywords else t.name
+
         topic = Topic(
             analysis_id=analysis.id,
             name=t.name,
+            phrase=phrase,
             sentiment_category=st,
             mention_count=t.mention_count,
             total_engagement=t.total_engagement,
             priority=priority,
             priority_score=t.total_engagement,
             keywords=t.keywords,
+            comment_ids=cids,
         )
         db.add(topic)
         db.commit()
 
+        # Also store topic-comment associations for legacy queries
         for c in cs[:3]:
             tc = TopicComment(topic_id=topic.id, comment_id=c.id)
             db.add(tc)
@@ -589,6 +577,7 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
             TopicResponse(
                 id=topic.id,
                 name=topic.name,
+                phrase=topic.phrase or topic.name,
                 sentiment_category=sentiment_map.get(
                     topic.sentiment_category, SentimentType.NEUTRAL
                 ),
@@ -597,7 +586,7 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
                 priority=priority_map.get(topic.priority) if topic.priority else None,
                 priority_score=topic.priority_score or 0.0,
                 keywords=topic.keywords or [],
-                recommendation=topic.recommendation,
+                comment_ids=topic.comment_ids or [],
                 sample_comments=sample_comments,
             )
         )
@@ -677,6 +666,23 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
             summary=report.get("summary", ""),
         )
 
+    # Build summaries response from stored data
+    summaries_response = None
+    if analysis.summaries_data:
+        summaries = analysis.summaries_data
+        summaries_response = SummariesResponse(
+            positive=SentimentSummaryText(**summaries["positive"])
+            if summaries.get("positive")
+            else None,
+            negative=SentimentSummaryText(**summaries["negative"])
+            if summaries.get("negative")
+            else None,
+            suggestion=SentimentSummaryText(**summaries["suggestion"])
+            if summaries.get("suggestion")
+            else None,
+            generated_by=summaries.get("generated_by", "ollama"),
+        )
+
     return AnalysisResponse(
         id=analysis.id,
         video=VideoResponse(
@@ -700,7 +706,7 @@ async def get_analysis_result(analysis_id: int, db: Session = Depends(get_db)):
             suggestion_engagement=analysis.suggestion_engagement,
         ),
         topics=topic_responses,
-        recommendations=analysis.recommendations or [],
+        summaries=summaries_response,
         ml_metadata=ml_metadata,
         absa=absa_response,
     )
@@ -738,6 +744,37 @@ async def get_latest_analysis_for_video(video_id: str, db: Session = Depends(get
         return None
 
     return await get_analysis_result(analysis.id, db)
+
+
+@router.get("/video/{video_id}/comments", response_model=list[CommentResponse])
+async def get_comments_by_video(video_id: str, db: Session = Depends(get_db)):
+    """Get all comments for a video."""
+    comments = (
+        db.query(Comment)
+        .filter(Comment.video_id == video_id)
+        .order_by(Comment.like_count.desc())
+        .all()
+    )
+
+    sentiment_map = {
+        DBSentimentType.POSITIVE: SentimentType.POSITIVE,
+        DBSentimentType.NEGATIVE: SentimentType.NEGATIVE,
+        DBSentimentType.NEUTRAL: SentimentType.NEUTRAL,
+        DBSentimentType.SUGGESTION: SentimentType.SUGGESTION,
+    }
+
+    return [
+        CommentResponse(
+            id=c.id,
+            text=c.text,
+            author_name=c.author_name or "Unknown",
+            like_count=c.like_count,
+            sentiment=sentiment_map.get(c.sentiment),
+            confidence=c.sentiment_score,
+            published_at=c.published_at,
+        )
+        for c in comments
+    ]
 
 
 @router.delete("/history/{analysis_id}")
