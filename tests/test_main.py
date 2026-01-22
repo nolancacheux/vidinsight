@@ -377,7 +377,7 @@ class TestAnalyzeEndpoint:
         content = response.text
         assert "ERROR" in content or "Invalid YouTube URL" in content
 
-    @patch("api.routers.analysis.YouTubeExtractor")
+    @patch("api.routers.analysis.pipeline.YouTubeExtractor")
     def test_analyze_video_not_found(self, mock_extractor_class, client):
         """Test analyze endpoint when video not found."""
         from api.services.youtube import VideoNotFoundError
@@ -395,7 +395,7 @@ class TestAnalyzeEndpoint:
         content = response.text
         assert "ERROR" in content or "not found" in content.lower()
 
-    @patch("api.routers.analysis.YouTubeExtractor")
+    @patch("api.routers.analysis.pipeline.YouTubeExtractor")
     def test_analyze_comments_disabled(self, mock_extractor_class, client):
         """Test analyze endpoint when comments are disabled."""
         from api.services.youtube import CommentsDisabledError, VideoMetadata

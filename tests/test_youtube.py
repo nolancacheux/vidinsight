@@ -488,6 +488,7 @@ class TestYouTubeExtractor:
         """Test search error handling."""
         mock_result = MagicMock()
         mock_result.returncode = 1
+        mock_result.stdout = ""
         mock_result.stderr = "Search failed"
         mock_run.return_value = mock_result
 
