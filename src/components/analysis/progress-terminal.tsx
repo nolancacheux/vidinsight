@@ -95,10 +95,10 @@ export function ProgressTerminal({
   return (
     <div className="h-full flex flex-col rounded-lg border bg-white overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b bg-gradient-to-r from-indigo-50 to-white">
+      <div className="px-5 py-4 border-b bg-gradient-to-r from-[#D4714E]/5 to-white">
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-semibold text-slate-800">Analyzing Video</h3>
-          <span className="text-sm font-medium text-indigo-600 tabular-nums">
+          <span className="text-sm font-medium text-[#D4714E] tabular-nums">
             {Math.round(progress)}%
           </span>
         </div>
@@ -129,7 +129,7 @@ export function ProgressTerminal({
                     className={cn(
                       "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
                       status === "complete" && "bg-emerald-100 text-emerald-600",
-                      status === "active" && "bg-indigo-100 text-indigo-600",
+                      status === "active" && "bg-[#D4714E]/10 text-[#D4714E]",
                       status === "error" && "bg-red-100 text-red-600",
                       status === "pending" && "bg-slate-100 text-slate-400"
                     )}
@@ -158,7 +158,7 @@ export function ProgressTerminal({
                     className={cn(
                       "text-sm font-medium leading-tight",
                       status === "complete" && "text-emerald-700",
-                      status === "active" && "text-indigo-700",
+                      status === "active" && "text-[#B85D3E]",
                       status === "error" && "text-red-700",
                       status === "pending" && "text-slate-400"
                     )}
@@ -176,7 +176,7 @@ export function ProgressTerminal({
 
                   {/* Show progress for extracting/analyzing stages */}
                   {status === "active" && stage.id === "extracting_comments" && commentsFound !== undefined && (
-                    <p className="text-xs mt-1 text-indigo-600 font-medium tabular-nums">
+                    <p className="text-xs mt-1 text-[#D4714E] font-medium tabular-nums">
                       {commentsFound.toLocaleString()} comments found
                     </p>
                   )}
@@ -184,13 +184,13 @@ export function ProgressTerminal({
                     <div className="mt-1.5">
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-slate-500">Processing comments</span>
-                        <span className="text-indigo-600 font-medium tabular-nums">
+                        <span className="text-[#D4714E] font-medium tabular-nums">
                           {commentsAnalyzed}/{commentsFound}
                         </span>
                       </div>
                       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                          className="h-full bg-[#D4714E] rounded-full transition-all duration-300"
                           style={{ width: `${commentsFound > 0 ? (commentsAnalyzed / commentsFound) * 100 : 0}%` }}
                         />
                       </div>
@@ -205,11 +205,11 @@ export function ProgressTerminal({
 
       {/* Current Stage Highlight + Cancel Button */}
       {currentStageInfo && currentStage !== "complete" && currentStage !== "error" && (
-        <div className="px-5 py-3 border-t bg-indigo-50">
+        <div className="px-5 py-3 border-t bg-[#D4714E]/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 text-indigo-600 animate-spin" />
-              <span className="text-sm text-indigo-700 font-medium">
+              <Loader2 className="h-4 w-4 text-[#D4714E] animate-spin" />
+              <span className="text-sm text-[#B85D3E] font-medium">
                 {currentStageInfo.label}...
               </span>
             </div>

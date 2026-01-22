@@ -129,8 +129,8 @@ export function Sidebar({
       <div
         onMouseDown={handleMouseDown}
         className={cn(
-          "absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-400 transition-colors z-10",
-          isResizing && "bg-indigo-500"
+          "absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#E08B6D] transition-colors z-10",
+          isResizing && "bg-[#D4714E]"
         )}
       />
       {/* Header with toggle */}
@@ -165,7 +165,7 @@ export function Sidebar({
           onClick={onNewAnalysis}
           disabled={isAnalyzing}
           className={cn(
-            "bg-indigo-600 hover:bg-indigo-700 text-white h-9",
+            "bg-[#D4714E] hover:bg-[#B85D3E] text-white h-9",
             collapsed ? "w-full px-0" : "w-full"
           )}
           title="New Analysis"
@@ -212,7 +212,7 @@ export function Sidebar({
                   className={cn(
                     "group relative flex items-center rounded-lg cursor-pointer transition-colors hover:bg-slate-50",
                     collapsed ? "p-1 justify-center" : "p-2 gap-2",
-                    selectedId === item.id && "bg-indigo-50 ring-1 ring-indigo-200"
+                    selectedId === item.id && "bg-[#D4714E]/5 ring-1 ring-[#D4714E]/20"
                   )}
                   onClick={() => onSelectHistory(item)}
                   title={collapsed ? item.video_title : undefined}

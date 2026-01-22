@@ -183,7 +183,7 @@ export function SentimentSection({
       {summary ? (
         <div className="px-5 py-4 border-b border-stone-100">
           <div className="flex items-start gap-3">
-            <Sparkles className="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+            <Sparkles className="h-4 w-4 text-[#D4714E] mt-0.5 flex-shrink-0" />
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-stone-500">
                 <span>Summary</span>
