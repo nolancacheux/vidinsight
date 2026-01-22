@@ -114,17 +114,9 @@ export function UrlInput({ onValidUrl, onSearchStart, onSearchResults, disabled,
           setVideoId(null);
         }
       } else {
-        // Search mode
+        // Search mode - don't auto-search, wait for Enter or button click
         setIsValid(null);
         setVideoId(null);
-
-        const trimmed = value.trim();
-        if (trimmed.length >= 3) {
-          // Debounce search by 300ms for faster response
-          debounceTimeoutRef.current = setTimeout(() => {
-            performSearch(trimmed);
-          }, 300);
-        }
       }
     },
     [validateAndTrigger, performSearch]
