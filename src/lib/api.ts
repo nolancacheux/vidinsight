@@ -165,10 +165,13 @@ export async function searchVideos(
 }
 
 export function isUrl(text: string): boolean {
+  // Only consider it a URL if it starts with http/https or looks like a YouTube URL pattern
+  const trimmed = text.trim();
   return (
-    text.startsWith("http://") ||
-    text.startsWith("https://") ||
-    text.includes("youtube.com") ||
-    text.includes("youtu.be")
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("youtube.com/") ||
+    trimmed.startsWith("www.youtube.com/") ||
+    trimmed.startsWith("youtu.be/")
   );
 }
