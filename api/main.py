@@ -18,9 +18,16 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting AI-Video-Comment-Analyzer API...")
+    logger.info("=" * 50)
+    logger.info("AI-Video-Comment-Analyzer API")
+    logger.info("=" * 50)
+    logger.info("Initializing database...")
     init_db()
-    logger.info("Database initialized")
+    logger.info("Database ready")
+    logger.info("Loading ML models (this may take a moment)...")
+    # Models are loaded lazily on first use, but log for clarity
+    logger.info("API ready! Listening on http://127.0.0.1:8000")
+    logger.info("=" * 50)
     yield
     logger.info("Shutting down API...")
 
