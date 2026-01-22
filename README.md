@@ -1,6 +1,12 @@
-# AI-Video-Comment-Analyzer
+<h1 align="center">AI Video Comment Analyzer</h1>
 
-AI-powered YouTube comment analysis tool with ML-powered sentiment detection, topic modeling, and AI-generated summaries.
+<p align="center">
+  AI-powered YouTube comment analysis with ML sentiment detection, topic modeling, and AI-generated summaries.
+</p>
+
+<p align="center">
+  <img src="demo/demo.gif" alt="Demo" width="700">
+</p>
 
 ## Features
 
@@ -10,6 +16,25 @@ AI-powered YouTube comment analysis tool with ML-powered sentiment detection, to
 - **AI Summaries**: Local LLM-powered summaries via Ollama (llama3.2:3b)
 - **Multi-Page Dashboard**: Dedicated pages for Overview, Charts, Topics, and Comments
 - **Real-time Progress**: SSE streaming with ML metrics during analysis
+
+## Screenshots
+
+<details>
+<summary>View Screenshots</summary>
+
+### Home
+<img src="demo/home.png" alt="Home" width="700">
+
+### Overview
+<img src="demo/overview.png" alt="Overview" width="700">
+
+### Charts
+<img src="demo/charts.png" alt="Charts" width="700">
+
+### Suggestions
+<img src="demo/suggestions.png" alt="Suggestions" width="700">
+
+</details>
 
 ## Quick Start
 
