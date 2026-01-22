@@ -1,4 +1,5 @@
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting AI-Video-Comment-Analyzer...")
     logger.info("Initializing database...")
     init_db()
@@ -49,10 +50,10 @@ app.include_router(analysis_router)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "AI-Video-Comment-Analyzer API", "version": "0.1.0"}
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "healthy"}

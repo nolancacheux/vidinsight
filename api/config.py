@@ -71,10 +71,5 @@ class Settings:
     SEARCH_RESULTS_LIMIT: int = get_int("SEARCH_RESULTS_LIMIT", 5)
 
 
-def get_settings() -> Settings:
-    """Get cached settings instance."""
-    return Settings()
-
-
 # Convenience exports
 settings = Settings()

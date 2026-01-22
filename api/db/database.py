@@ -2,8 +2,10 @@
 Database configuration and session management.
 """
 
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 DATABASE_URL = "sqlite:///./ai-video-comment-analyzer.db"
 
@@ -17,7 +19,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """Dependency for FastAPI endpoints."""
     db = SessionLocal()
     try:
@@ -26,6 +28,6 @@ def get_db():
         db.close()
 
 
-def init_db():
+def init_db() -> None:
     """Initialize database tables."""
     Base.metadata.create_all(bind=engine)
