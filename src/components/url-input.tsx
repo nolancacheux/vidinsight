@@ -4,24 +4,21 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { isValidYouTubeUrl, extractVideoId, getVideoThumbnail, searchVideos, isUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { SearchResults } from "@/components/search-results";
 import type { SearchResult } from "@/types";
 
 interface UrlInputProps {
   onValidUrl: (url: string) => void;
+  onSearchStart?: (query: string) => void;
+  onSearchResults?: (results: SearchResult[], query: string) => void;
   disabled?: boolean;
   className?: string;
 }
 
-export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
+export function UrlInput({ onValidUrl, onSearchStart, onSearchResults, disabled, className }: UrlInputProps) {
   const [url, setUrl] = useState("");
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
-
-  // Search state
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,18 +35,6 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
     };
   }, []);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest(".search-container")) {
-        setShowResults(false);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
   const performSearch = useCallback(async (query: string) => {
     // Cancel any pending request
     if (abortControllerRef.current) {
@@ -60,33 +45,20 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
     abortControllerRef.current = controller;
 
     setIsSearching(true);
-    setShowResults(true);
+    onSearchStart?.(query);
 
     try {
-      const results = await searchVideos(query, 5, controller.signal);
-      setSearchResults(results);
+      const results = await searchVideos(query, 8, controller.signal);
+      onSearchResults?.(results, query);
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
         console.error("Search failed:", error);
-        setSearchResults([]);
+        onSearchResults?.([], query);
       }
     } finally {
       setIsSearching(false);
     }
-  }, []);
-
-  const handleSearchResult = useCallback(
-    (result: SearchResult) => {
-      const youtubeUrl = `https://www.youtube.com/watch?v=${result.id}`;
-      setUrl(youtubeUrl);
-      setIsValid(true);
-      setVideoId(result.id);
-      setShowResults(false);
-      setSearchResults([]);
-      onValidUrl(youtubeUrl);
-    },
-    [onValidUrl]
-  );
+  }, [onSearchStart, onSearchResults]);
 
   const validateAndTrigger = useCallback(
     (value: string) => {
@@ -103,8 +75,6 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
       if (valid) {
         const id = extractVideoId(trimmed);
         setVideoId(id);
-        setShowResults(false);
-        setSearchResults([]);
         onValidUrl(trimmed);
       } else {
         setVideoId(null);
@@ -139,13 +109,9 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
         } else if (!value.trim()) {
           setIsValid(null);
           setVideoId(null);
-          setShowResults(false);
-          setSearchResults([]);
         } else {
           setIsValid(false);
           setVideoId(null);
-          setShowResults(false);
-          setSearchResults([]);
         }
       } else {
         // Search mode
@@ -158,9 +124,6 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
           debounceTimeoutRef.current = setTimeout(() => {
             performSearch(trimmed);
           }, 500);
-        } else {
-          setShowResults(false);
-          setSearchResults([]);
         }
       }
     },
@@ -171,32 +134,25 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        const trimmed = url.trim();
 
-        // If showing search results and user presses enter, select first result
-        if (showResults && searchResults.length > 0) {
-          handleSearchResult(searchResults[0]);
-        } else {
-          validateAndTrigger(url);
+        // If it's a URL, validate it
+        if (isUrl(trimmed)) {
+          validateAndTrigger(trimmed);
+        } else if (trimmed.length >= 3) {
+          // Otherwise trigger search immediately
+          performSearch(trimmed);
         }
-      } else if (e.key === "Escape") {
-        setShowResults(false);
       }
     },
-    [url, validateAndTrigger, showResults, searchResults, handleSearchResult]
+    [url, validateAndTrigger, performSearch]
   );
-
-  const handleFocus = useCallback(() => {
-    // Show results again if we have them and input is not a URL
-    if (searchResults.length > 0 && !isUrl(url)) {
-      setShowResults(true);
-    }
-  }, [searchResults, url]);
 
   const isSearchMode = url.trim().length >= 3 && !isUrl(url);
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="relative search-container">
+      <div className="relative">
         <Input
           ref={inputRef}
           type="text"
@@ -205,7 +161,6 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
           onChange={handleChange}
           onPaste={handlePaste}
           onKeyDown={handleKeyDown}
-          onFocus={handleFocus}
           disabled={disabled}
           className={cn(
             "h-14 text-lg px-6 pr-12 transition-colors",
@@ -309,14 +264,6 @@ export function UrlInput({ onValidUrl, disabled, className }: UrlInputProps) {
             </svg>
           )}
         </div>
-
-        {showResults && (
-          <SearchResults
-            results={searchResults}
-            isLoading={isSearching}
-            onSelect={handleSearchResult}
-          />
-        )}
       </div>
 
       {isValid === false && url.trim() && isUrl(url) && (

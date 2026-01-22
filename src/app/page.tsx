@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, Lightbulb, MessageSquare } from "lucide-react";
+import { Heart, Lightbulb, MessageSquare, ArrowLeft, Calendar } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MLInfoPanel } from "@/components/analysis/ml-info-panel";
 import { ProgressTerminal } from "@/components/analysis/progress-terminal";
@@ -11,7 +11,7 @@ import { ErrorDisplay } from "@/components/error-display";
 import { GlobalNav } from "@/components/navigation/global-nav";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { getAnalysisHistory, deleteAnalysis } from "@/lib/api";
-import type { AnalysisHistoryItem } from "@/types";
+import type { AnalysisHistoryItem, SearchResult } from "@/types";
 
 export default function Home() {
   const router = useRouter();
@@ -33,6 +33,12 @@ export default function Home() {
 
   const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  // Search state
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchView, setShowSearchView] = useState(false);
 
   // Load history on mount
   useEffect(() => {
@@ -101,7 +107,44 @@ export default function Home() {
     []
   );
 
-  const showInputState = !isAnalyzing && !error;
+  // Search handlers
+  const handleSearchResults = useCallback((results: SearchResult[], query: string) => {
+    setSearchResults(results);
+    setSearchQuery(query);
+    setShowSearchView(true);
+    setIsSearching(false);
+  }, []);
+
+  const handleSearchStart = useCallback((query: string) => {
+    setSearchQuery(query);
+    setIsSearching(true);
+    setShowSearchView(true);
+  }, []);
+
+  const handleSelectSearchResult = useCallback((result: SearchResult) => {
+    const url = `https://www.youtube.com/watch?v=${result.id}`;
+    setShowSearchView(false);
+    setSearchResults([]);
+    setSearchQuery("");
+    startAnalysis(url);
+  }, [startAnalysis]);
+
+  const handleBackFromSearch = useCallback(() => {
+    setShowSearchView(false);
+    setSearchResults([]);
+    setSearchQuery("");
+    setIsSearching(false);
+  }, []);
+
+  const formatViewCount = (count: number | undefined): string => {
+    if (count === undefined) return "";
+    if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`;
+    if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K views`;
+    return `${count} views`;
+  };
+
+  const showInputState = !isAnalyzing && !error && !showSearchView;
+  const showSearchState = showSearchView && !isAnalyzing && !error;
   const showAnalyzingState = isAnalyzing;
   const showErrorState = error && !isAnalyzing;
 
@@ -139,7 +182,11 @@ export default function Home() {
                 </div>
 
                 {/* URL Input */}
-                <UrlInput onValidUrl={handleValidUrl} />
+                <UrlInput
+                  onValidUrl={handleValidUrl}
+                  onSearchStart={handleSearchStart}
+                  onSearchResults={handleSearchResults}
+                />
 
                 {/* Feature Badges */}
                 <div className="flex items-center justify-center gap-6 text-sm text-[#6B7280] font-body">
@@ -165,6 +212,120 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Search Results State */}
+          {showSearchState && (
+            <div className="h-full flex flex-col fade-up">
+              {/* Header with back button */}
+              <div className="flex items-center gap-4 mb-6">
+                <button
+                  onClick={handleBackFromSearch}
+                  className="flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#1E3A5F] transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </button>
+                <div className="h-4 w-px bg-[#E8E4DC]" />
+                <h2 className="text-lg font-display font-semibold text-[#1E3A5F]">
+                  {isSearching ? "Searching..." : `Results for "${searchQuery}"`}
+                </h2>
+              </div>
+
+              {/* Search results grid */}
+              {isSearching ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="flex items-center gap-3">
+                    <svg
+                      className="animate-spin h-6 w-6 text-[#D4714E]"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span className="text-[#6B7280]">Searching YouTube...</span>
+                  </div>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-[#6B7280]">No results found for "{searchQuery}"</p>
+                    <button
+                      onClick={handleBackFromSearch}
+                      className="mt-4 text-sm text-[#D4714E] hover:underline"
+                    >
+                      Try a different search
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {searchResults.map((result) => (
+                      <button
+                        key={result.id}
+                        onClick={() => handleSelectSearchResult(result)}
+                        className="group text-left rounded-xl border border-[#E8E4DC] bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-[#D4714E]/50 transition-all"
+                      >
+                        <div className="relative aspect-video">
+                          <img
+                            src={result.thumbnail}
+                            alt={result.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://i.ytimg.com/vi/${result.id}/hqdefault.jpg`;
+                            }}
+                          />
+                          {result.duration && (
+                            <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">
+                              {result.duration}
+                            </span>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="text-sm font-medium text-[#1E3A5F] line-clamp-2 leading-tight group-hover:text-[#D4714E] transition-colors">
+                            {result.title}
+                          </h3>
+                          <p className="text-xs text-[#6B7280] mt-1">{result.channel}</p>
+                          <div className="flex items-center gap-2 mt-2 text-xs text-[#6B7280]">
+                            {result.viewCount !== undefined && (
+                              <span>{formatViewCount(result.viewCount)}</span>
+                            )}
+                            {result.viewCount !== undefined && result.publishedAt && (
+                              <span>-</span>
+                            )}
+                            {result.publishedAt && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {result.publishedAt}
+                              </span>
+                            )}
+                          </div>
+                          {result.description && (
+                            <p className="text-[11px] text-[#6B7280] mt-2 line-clamp-2 leading-snug">
+                              {result.description}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
