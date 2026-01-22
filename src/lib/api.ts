@@ -90,6 +90,17 @@ export async function getLatestAnalysisForVideo(
   return data || null;
 }
 
+import type { Comment } from "@/types";
+
+export async function getCommentsByVideo(videoId: string): Promise<Comment[]> {
+  const response = await fetch(`${API_BASE}/api/analysis/video/${videoId}/comments`);
+  if (!response.ok) {
+    if (response.status === 404) return [];
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+}
+
 const YOUTUBE_URL_PATTERNS = [
   /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
   /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,

@@ -5,9 +5,8 @@ export type AnalysisStage =
   | "fetching_metadata"
   | "extracting_comments"
   | "analyzing_sentiment"
-  | "analyzing_aspects"
   | "detecting_topics"
-  | "generating_insights"
+  | "generating_summaries"
   | "complete"
   | "error";
 
@@ -39,13 +38,14 @@ export interface Comment {
 export interface Topic {
   id: number;
   name: string;
+  phrase: string;  // Human-readable phrase from BERTopic
   sentiment_category: SentimentType;
   mention_count: number;
   total_engagement: number;
   priority: PriorityLevel | null;
   priority_score: number;
   keywords: string[];
-  recommendation: string | null;
+  comment_ids: string[];  // IDs of comments in this topic
   sample_comments: Comment[];
 }
 
@@ -106,6 +106,22 @@ export interface ABSAResult {
   summary: string;
 }
 
+// AI-generated summary for a sentiment category
+export interface SentimentSummaryText {
+  category: SentimentType;
+  summary: string;
+  topic_count: number;
+  comment_count: number;
+}
+
+// AI-generated summaries response
+export interface SummariesResult {
+  positive: SentimentSummaryText | null;
+  negative: SentimentSummaryText | null;
+  suggestion: SentimentSummaryText | null;
+  generated_by: string;
+}
+
 export interface AnalysisResult {
   id: number;
   video: Video;
@@ -113,9 +129,9 @@ export interface AnalysisResult {
   analyzed_at: string;
   sentiment: SentimentSummary;
   topics: Topic[];
-  recommendations: string[];
+  summaries?: SummariesResult;  // AI-generated summaries
   ml_metadata?: MLMetadata;
-  absa?: ABSAResult;
+  absa?: ABSAResult;  // Kept for backward compatibility
 }
 
 export interface ProgressEvent {
