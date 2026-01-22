@@ -155,7 +155,7 @@ export function SentimentSection({
       </div>
 
       {/* AI Summary */}
-      {summary && (
+      {summary ? (
         <div className="px-5 py-4 border-b border-stone-100">
           <div className="flex items-start gap-2">
             <Sparkles className="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" />
@@ -167,6 +167,13 @@ export function SentimentSection({
                 AI-generated summary based on {summary.comment_count} comments
               </p>
             </div>
+          </div>
+        </div>
+      ) : (
+        <div className="px-5 py-3 border-b border-stone-100 bg-stone-50/50">
+          <div className="flex items-center gap-2 text-xs text-stone-500">
+            <Sparkles className="h-3.5 w-3.5 text-stone-400" />
+            <span>AI summary unavailable (Ollama not running)</span>
           </div>
         </div>
       )}
