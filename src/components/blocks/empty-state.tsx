@@ -24,7 +24,7 @@ export function EmptyState({
       <div className="w-12 h-12 rounded-full bg-[#E8E4DC] flex items-center justify-center mb-3">
         <MessageSquare className="h-6 w-6 text-[#6B7280]" />
       </div>
-      <h3 className="text-sm font-semibold text-[#1E3A5F] mb-1">{title}</h3>
+      <h3 className="text-sm font-semibold text-[#3D1F1F] mb-1">{title}</h3>
       <p className="text-xs text-[#6B7280] max-w-[200px]">{description}</p>
     </div>
   );

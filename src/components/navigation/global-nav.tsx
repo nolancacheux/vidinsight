@@ -23,7 +23,7 @@ export function GlobalNav({ className }: GlobalNavProps) {
       {/* Logo / Brand */}
       <Link
         href="/"
-        className="flex items-center gap-2 text-[#1E3A5F] hover:text-[#D4714E] transition-colors"
+        className="flex items-center gap-2 text-[#3D1F1F] hover:text-[#D4714E] transition-colors"
       >
         <BarChart3 className="h-5 w-5" />
         <span className="font-display font-semibold text-lg tracking-tight">
@@ -38,8 +38,8 @@ export function GlobalNav({ className }: GlobalNavProps) {
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
             isHome
-              ? "bg-[#1E3A5F]/5 text-[#1E3A5F]"
-              : "text-[#6B7280] hover:text-[#1E3A5F] hover:bg-[#FAF8F5]"
+              ? "bg-[#3D1F1F]/5 text-[#3D1F1F]"
+              : "text-[#6B7280] hover:text-[#3D1F1F] hover:bg-[#FAF8F5]"
           )}
         >
           <Home className="h-4 w-4" />

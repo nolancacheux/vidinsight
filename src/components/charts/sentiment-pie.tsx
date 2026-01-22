@@ -14,11 +14,11 @@ interface SentimentPieProps {
   sentiment: SentimentSummary;
 }
 
-// Redesigned color palette - Navy + Terracotta theme
+// Redesigned color palette - Burgundy + Terracotta theme
 const COLORS = {
   positive: "#2D7A5E", // Forest green
   negative: "#C44536", // Burnt red
-  suggestion: "#4A7C9B", // Steel blue
+  suggestion: "#9B7B5B", // Warm bronze
   neutral: "#6B7280", // Slate
 };
 

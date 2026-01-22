@@ -27,7 +27,7 @@ export function EvidenceStrip({ comments, className }: EvidenceStripProps) {
       case "negative":
         return "border-l-[#C44536] bg-[#C44536]/5";
       case "suggestion":
-        return "border-l-[#4A7C9B] bg-[#4A7C9B]/5";
+        return "border-l-[#9B7B5B] bg-[#9B7B5B]/5";
       default:
         return "border-l-[#6B7280] bg-[#6B7280]/5";
     }
@@ -66,7 +66,7 @@ export function EvidenceStrip({ comments, className }: EvidenceStripProps) {
               <div className="flex items-start gap-2">
                 <p
                   className={cn(
-                    "text-[11px] text-[#1E3A5F] leading-snug flex-1",
+                    "text-[11px] text-[#3D1F1F] leading-snug flex-1",
                     !isExpanded && needsTruncation && "line-clamp-2"
                   )}
                 >

@@ -30,9 +30,9 @@ const sentimentConfig = {
   suggestion: {
     label: "Suggestions",
     icon: Lightbulb,
-    color: "text-[#4A7C9B]",
-    bgColor: "bg-[#4A7C9B]/10",
-    borderColor: "border-l-[#4A7C9B]",
+    color: "text-[#9B7B5B]",
+    bgColor: "bg-[#9B7B5B]/10",
+    borderColor: "border-l-[#9B7B5B]",
   },
   neutral: {
     label: "Neutral",
@@ -100,7 +100,7 @@ export default function TopicsPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-2">
+          <h2 className="text-lg font-semibold text-[#3D1F1F] mb-2">
             Topics Unavailable
           </h2>
           <p className="text-[#6B7280]">
@@ -118,7 +118,7 @@ export default function TopicsPage() {
       {/* Header */}
       <div className="flex items-center justify-between reveal stagger-1">
         <div>
-          <h2 className="text-xl font-display font-semibold text-[#1E3A5F]">
+          <h2 className="text-xl font-display font-semibold text-[#3D1F1F]">
             Topics
           </h2>
           <p className="text-[#6B7280]">
@@ -189,7 +189,7 @@ export default function TopicsPage() {
                                 #{idx + 1}
                               </span>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[#1E3A5F] truncate">
+                                <p className="text-sm font-medium text-[#3D1F1F] truncate">
                                   {topic.phrase || topic.name}
                                 </p>
                                 <div className="flex items-center gap-3 mt-1 text-xs text-[#6B7280]">
@@ -248,7 +248,7 @@ export default function TopicsPage() {
                     );
                   })()}
                   <div>
-                    <h3 className="text-lg font-semibold text-[#1E3A5F]">
+                    <h3 className="text-lg font-semibold text-[#3D1F1F]">
                       {selectedTopic.phrase || selectedTopic.name}
                     </h3>
                     <p className="text-sm text-[#6B7280]">
@@ -265,7 +265,7 @@ export default function TopicsPage() {
                     {selectedTopic.keywords.map((keyword) => (
                       <span
                         key={keyword}
-                        className="px-2 py-1 text-xs bg-white/50 rounded text-[#1E3A5F]"
+                        className="px-2 py-1 text-xs bg-white/50 rounded text-[#3D1F1F]"
                       >
                         {keyword}
                       </span>

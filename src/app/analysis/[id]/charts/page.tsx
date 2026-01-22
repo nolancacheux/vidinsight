@@ -32,7 +32,7 @@ export default function ChartsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-2">
+          <h2 className="text-lg font-semibold text-[#3D1F1F] mb-2">
             Charts Unavailable
           </h2>
           <p className="text-[#6B7280]">
@@ -78,7 +78,7 @@ export default function ChartsPage() {
   return (
     <div className="space-y-3">
       <div className="reveal stagger-1">
-        <h2 className="text-lg font-display font-semibold text-[#1E3A5F]">
+        <h2 className="text-lg font-display font-semibold text-[#3D1F1F]">
           Analysis Charts
         </h2>
         <p className="text-xs text-[#6B7280]">
@@ -92,7 +92,7 @@ export default function ChartsPage() {
             key={panel.title}
             className={`rounded-lg border border-[#E8E4DC] bg-white p-3 shadow-sm reveal stagger-${index + 2}`}
           >
-            <h3 className="text-sm font-semibold text-[#1E3A5F] mb-1">
+            <h3 className="text-sm font-semibold text-[#3D1F1F] mb-1">
               {panel.title}
             </h3>
             <div className="h-40">{panel.chart}</div>

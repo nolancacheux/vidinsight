@@ -34,7 +34,7 @@ export default function OverviewPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-2">
+          <h2 className="text-lg font-semibold text-[#3D1F1F] mb-2">
             Analysis Not Found
           </h2>
           <p className="text-[#6B7280]">

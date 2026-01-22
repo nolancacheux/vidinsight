@@ -110,7 +110,7 @@ export default function CommentsPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#1E3A5F] mb-2">
+          <h2 className="text-lg font-semibold text-[#3D1F1F] mb-2">
             Comments Unavailable
           </h2>
           <p className="text-[#6B7280]">
@@ -126,7 +126,7 @@ export default function CommentsPage() {
       {/* Header & Filters */}
       <div className="flex items-center justify-between reveal stagger-1">
         <div>
-          <h2 className="text-xl font-display font-semibold text-[#1E3A5F]">
+          <h2 className="text-xl font-display font-semibold text-[#3D1F1F]">
             Comments
           </h2>
           <p className="text-[#6B7280]">
@@ -147,7 +147,7 @@ export default function CommentsPage() {
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                     sortBy === option.value
-                      ? "bg-[#1E3A5F] text-white"
+                      ? "bg-[#3D1F1F] text-white"
                       : "text-[#6B7280] hover:bg-[#E8E4DC]"
                   )}
                 >
@@ -197,7 +197,7 @@ export default function CommentsPage() {
                             topic.sentiment_category === "negative" &&
                               "bg-[#C44536]/10 text-[#C44536]",
                             topic.sentiment_category === "suggestion" &&
-                              "bg-[#4A7C9B]/10 text-[#4A7C9B]",
+                              "bg-[#9B7B5B]/10 text-[#9B7B5B]",
                             topic.sentiment_category === "neutral" &&
                               "bg-[#6B7280]/10 text-[#6B7280]"
                           )}

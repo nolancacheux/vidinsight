@@ -27,8 +27,8 @@ const filterOptions: {
     value: "all",
     label: "All",
     icon: null,
-    color: "text-[#6B7280] hover:text-[#1E3A5F] hover:bg-[#E8E4DC]",
-    activeColor: "bg-[#1E3A5F] text-white",
+    color: "text-[#6B7280] hover:text-[#3D1F1F] hover:bg-[#E8E4DC]",
+    activeColor: "bg-[#3D1F1F] text-white",
   },
   {
     value: "positive",
@@ -48,8 +48,8 @@ const filterOptions: {
     value: "suggestion",
     label: "Suggestions",
     icon: <Lightbulb className="h-4 w-4" />,
-    color: "text-[#4A7C9B] hover:bg-[#4A7C9B]/10",
-    activeColor: "bg-[#4A7C9B] text-white",
+    color: "text-[#9B7B5B] hover:bg-[#9B7B5B]/10",
+    activeColor: "bg-[#9B7B5B] text-white",
   },
   {
     value: "neutral",

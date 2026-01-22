@@ -100,12 +100,12 @@ export function OverviewContent({ analysis, comments }: OverviewContentProps) {
       <div className="grid grid-cols-3 gap-4 reveal stagger-1">
         {/* Narrative Summary */}
         <div className="col-span-2 rounded-xl border border-[#E8E4DC] bg-white p-4">
-          <h2 className="text-lg font-display font-semibold text-[#1E3A5F] mb-2">
+          <h2 className="text-lg font-display font-semibold text-[#3D1F1F] mb-2">
             At a Glance
           </h2>
           <div className="space-y-3">
             {/* Main insight */}
-            <p className="text-sm text-[#1E3A5F] leading-relaxed">
+            <p className="text-sm text-[#3D1F1F] leading-relaxed">
               {dominantSentiment === "positive" && (
                 <>
                   Audience reception is <span className="font-semibold text-[#2D7A5E]">mostly positive</span> ({positivePercent}%)
@@ -130,7 +130,7 @@ export function OverviewContent({ analysis, comments }: OverviewContentProps) {
             <div className="grid grid-cols-4 gap-3 pt-3 border-t border-[#E8E4DC]">
               <div>
                 <p className="text-[10px] text-[#6B7280] uppercase tracking-wider mb-0.5">Breakdown</p>
-                <p className="text-xs text-[#1E3A5F]">
+                <p className="text-xs text-[#3D1F1F]">
                   <span className="text-[#2D7A5E]">{positivePercent}%+</span>{" "}
                   <span className="text-[#C44536]">{negativePercent}%-</span>
                 </p>
@@ -144,13 +144,13 @@ export function OverviewContent({ analysis, comments }: OverviewContentProps) {
               </div>
               <div>
                 <p className="text-[10px] text-[#6B7280] uppercase tracking-wider mb-0.5">Top Topic</p>
-                <p className="text-xs text-[#1E3A5F] truncate">
+                <p className="text-xs text-[#3D1F1F] truncate">
                   {topTopic ? `"${topTopic.phrase || topTopic.name}"` : "None"}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] text-[#6B7280] uppercase tracking-wider mb-0.5">Suggestions</p>
-                <p className="text-xs text-[#4A7C9B]">
+                <p className="text-xs text-[#9B7B5B]">
                   {sentiment.suggestion_count > 0
                     ? `${sentiment.suggestion_count} actionable`
                     : "None"}
@@ -168,7 +168,7 @@ export function OverviewContent({ analysis, comments }: OverviewContentProps) {
 
       {/* Structured Summary Cards */}
       <div className="reveal stagger-2 flex-1">
-        <h2 className="text-sm font-display font-semibold text-[#1E3A5F] mb-2">
+        <h2 className="text-sm font-display font-semibold text-[#3D1F1F] mb-2">
           Sentiment Breakdown
         </h2>
         <div className="grid grid-cols-3 gap-3">

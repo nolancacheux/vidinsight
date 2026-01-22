@@ -34,10 +34,10 @@ const sentimentConfig = {
   suggestion: {
     label: "Suggestions",
     icon: Lightbulb,
-    borderColor: "border-l-[#4A7C9B]",
-    bgColor: "bg-[#4A7C9B]/5",
-    iconColor: "text-[#4A7C9B]",
-    headerBg: "bg-[#4A7C9B]",
+    borderColor: "border-l-[#9B7B5B]",
+    bgColor: "bg-[#9B7B5B]/5",
+    iconColor: "text-[#9B7B5B]",
+    headerBg: "bg-[#9B7B5B]",
   },
   neutral: {
     label: "Neutral",
@@ -97,7 +97,7 @@ export function SummaryCard({
               {sentimentTopics.slice(0, 3).map((topic) => (
                 <li
                   key={topic.id}
-                  className="text-xs text-[#1E3A5F] flex items-center gap-1.5"
+                  className="text-xs text-[#3D1F1F] flex items-center gap-1.5"
                 >
                   <span className="w-1 h-1 rounded-full bg-current opacity-40" />
                   <span className="truncate">{topic.phrase || topic.name}</span>
@@ -117,7 +117,7 @@ export function SummaryCard({
           <h4 className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-0.5">
             Evidence
           </h4>
-          <p className="text-xs text-[#1E3A5F]">
+          <p className="text-xs text-[#3D1F1F]">
             {commentCount} comments, {totalLikes.toLocaleString()} likes
           </p>
         </div>
@@ -131,7 +131,7 @@ export function SummaryCard({
             <div>
               <p
                 className={cn(
-                  "text-xs text-[#1E3A5F] leading-relaxed",
+                  "text-xs text-[#3D1F1F] leading-relaxed",
                   !isExpanded && "line-clamp-3"
                 )}
               >

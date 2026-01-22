@@ -188,7 +188,7 @@ export default function Home() {
               <div className="w-full max-w-xl space-y-8">
                 {/* Hero Section */}
                 <div className="text-center space-y-3">
-                  <h1 className="text-4xl font-display font-semibold tracking-tight text-[#1E3A5F]">
+                  <h1 className="text-4xl font-display font-semibold tracking-tight text-[#3D1F1F]">
                     AI Video Comment Analyzer
                   </h1>
                   <p className="text-lg text-[#6B7280] font-body">
@@ -212,8 +212,8 @@ export default function Home() {
                   </div>
                   <div className="h-4 w-px bg-[#E8E4DC]" />
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-md bg-[#4A7C9B]/10">
-                      <MessageSquare className="h-4 w-4 text-[#4A7C9B]" />
+                    <div className="p-1.5 rounded-md bg-[#9B7B5B]/10">
+                      <MessageSquare className="h-4 w-4 text-[#9B7B5B]" />
                     </div>
                     <span>Topic Detection</span>
                   </div>
@@ -236,13 +236,13 @@ export default function Home() {
               <div className="flex items-center gap-4 mb-6">
                 <button
                   onClick={handleBackFromSearch}
-                  className="flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#1E3A5F] transition-colors"
+                  className="flex items-center gap-2 text-sm text-[#6B7280] hover:text-[#3D1F1F] transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
                 </button>
                 <div className="h-4 w-px bg-[#E8E4DC]" />
-                <h2 className="text-lg font-display font-semibold text-[#1E3A5F]">
+                <h2 className="text-lg font-display font-semibold text-[#3D1F1F]">
                   {isSearching ? "Searching..." : `Results for "${searchQuery}"`}
                 </h2>
               </div>
@@ -311,7 +311,7 @@ export default function Home() {
                           )}
                         </div>
                         <div className="p-3">
-                          <h3 className="text-sm font-medium text-[#1E3A5F] line-clamp-2 leading-tight group-hover:text-[#D4714E] transition-colors">
+                          <h3 className="text-sm font-medium text-[#3D1F1F] line-clamp-2 leading-tight group-hover:text-[#D4714E] transition-colors">
                             {result.title}
                           </h3>
                           <p className="text-xs text-[#6B7280] mt-1">{result.channel}</p>
@@ -360,11 +360,11 @@ export default function Home() {
 
                 {/* Live Metrics */}
                 <div className="rounded-xl border border-[#E8E4DC] bg-white p-4 space-y-3 shadow-sm">
-                  <h4 className="text-sm font-semibold text-[#1E3A5F]">Live Metrics</h4>
+                  <h4 className="text-sm font-semibold text-[#3D1F1F]">Live Metrics</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-[#6B7280]">Comments Found</span>
-                      <span className="font-mono font-semibold tabular-nums text-[#1E3A5F]">
+                      <span className="font-mono font-semibold tabular-nums text-[#3D1F1F]">
                         {commentsFound.toLocaleString()}
                       </span>
                     </div>
@@ -376,7 +376,7 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-[#6B7280]">Processing Time</span>
-                      <span className="font-mono font-semibold tabular-nums text-[#1E3A5F]">
+                      <span className="font-mono font-semibold tabular-nums text-[#3D1F1F]">
                         {mlMetrics.processingTimeSeconds.toFixed(1)}s
                       </span>
                     </div>
