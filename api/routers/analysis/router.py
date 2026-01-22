@@ -22,8 +22,8 @@ from .search import router as search_router
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 # Mount sub-routers (order doesn't matter for routing)
-router.include_router(analyze_router)   # POST /analyze - run analysis
-router.include_router(results_router)   # GET /result/{id} - fetch results
-router.include_router(history_router)   # GET/DELETE /history - manage history
+router.include_router(analyze_router)  # POST /analyze - run analysis
+router.include_router(results_router)  # GET /result/{id} - fetch results
+router.include_router(history_router)  # GET/DELETE /history - manage history
 router.include_router(comments_router)  # GET /comments - fetch comments
-router.include_router(search_router)    # GET /search - search YouTube
+router.include_router(search_router)  # GET /search - search YouTube

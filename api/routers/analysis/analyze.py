@@ -38,6 +38,6 @@ async def analyze_video(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",  # Prevent caching of stream
-            "Connection": "keep-alive",   # Keep connection open for SSE
+            "Connection": "keep-alive",  # Keep connection open for SSE
         },
     )
