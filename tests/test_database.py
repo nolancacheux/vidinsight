@@ -279,13 +279,14 @@ class TestTopicModel:
         topic = Topic(
             analysis_id=analysis_fixture.id,
             name="Python",
+            phrase="python programming tutorials",
             sentiment_category=SentimentType.POSITIVE,
             mention_count=25,
             total_engagement=500,
             priority=PriorityLevel.HIGH,
             priority_score=0.85,
             keywords=["python", "programming", "code"],
-            recommendation="Keep creating Python content",
+            comment_ids=["comment1", "comment2"],
         )
         test_session.add(topic)
         test_session.commit()
@@ -295,6 +296,8 @@ class TestTopicModel:
         assert result.sentiment_category == SentimentType.POSITIVE
         assert result.priority == PriorityLevel.HIGH
         assert result.keywords == ["python", "programming", "code"]
+        assert result.phrase == "python programming tutorials"
+        assert result.comment_ids == ["comment1", "comment2"]
 
     def test_topic_defaults(self, test_session, analysis_fixture):
         """Test topic default values."""

@@ -51,9 +51,8 @@ class TestEnums:
         assert AnalysisStage.FETCHING_METADATA == "fetching_metadata"
         assert AnalysisStage.EXTRACTING_COMMENTS == "extracting_comments"
         assert AnalysisStage.ANALYZING_SENTIMENT == "analyzing_sentiment"
-        assert AnalysisStage.ANALYZING_ASPECTS == "analyzing_aspects"
         assert AnalysisStage.DETECTING_TOPICS == "detecting_topics"
-        assert AnalysisStage.GENERATING_INSIGHTS == "generating_insights"
+        assert AnalysisStage.GENERATING_SUMMARIES == "generating_summaries"
         assert AnalysisStage.COMPLETE == "complete"
         assert AnalysisStage.ERROR == "error"
 
@@ -155,17 +154,19 @@ class TestTopicResponse:
         topic = TopicResponse(
             id=1,
             name="Python",
+            phrase="python programming tutorials",
             sentiment_category=SentimentType.POSITIVE,
             mention_count=25,
             total_engagement=500,
             priority=PriorityLevel.HIGH,
             priority_score=0.85,
             keywords=["python", "programming", "code"],
-            recommendation="Keep creating Python content",
+            comment_ids=["comment1", "comment2"],
             sample_comments=[],
         )
         assert topic.id == 1
         assert topic.name == "Python"
+        assert topic.phrase == "python programming tutorials"
         assert topic.priority == PriorityLevel.HIGH
 
     def test_topic_response_defaults(self):
@@ -173,6 +174,7 @@ class TestTopicResponse:
         topic = TopicResponse(
             id=1,
             name="Test",
+            phrase="test topic",
             sentiment_category=SentimentType.NEUTRAL,
             mention_count=5,
             total_engagement=10,
@@ -180,6 +182,7 @@ class TestTopicResponse:
         assert topic.keywords == []
         assert topic.sample_comments == []
         assert topic.priority_score == 0.0
+        assert topic.comment_ids == []
 
 
 class TestSentimentSummary:
@@ -393,13 +396,13 @@ class TestAnalysisResponse:
             analyzed_at=datetime(2024, 1, 15),
             sentiment=SentimentSummary(positive_count=50),
             topics=[],
-            recommendations=["Great content!"],
+            summaries=None,
             ml_metadata=MLMetadata(),
             absa=None,
         )
         assert response.id == 1
         assert response.total_comments == 100
-        assert response.recommendations == ["Great content!"]
+        assert response.summaries is None
 
     def test_analysis_response_minimal(self):
         """Test AnalysisResponse with minimal fields."""

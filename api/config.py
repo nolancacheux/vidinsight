@@ -76,14 +76,11 @@ class Settings:
     SENTIMENT_MODEL: str = get_str(
         "SENTIMENT_MODEL", "nlptown/bert-base-multilingual-uncased-sentiment"
     )
-    ZERO_SHOT_MODEL: str = get_str("ZERO_SHOT_MODEL", "facebook/bart-large-mnli")
     EMBEDDING_MODEL: str = get_str("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
     # === ML Processing ===
     SENTIMENT_BATCH_SIZE: int = get_int("SENTIMENT_BATCH_SIZE", 32)
     SENTIMENT_MAX_LENGTH: int = get_int("SENTIMENT_MAX_LENGTH", 512)
-    ABSA_BATCH_SIZE: int = get_int("ABSA_BATCH_SIZE", 16)
-    ABSA_MAX_LENGTH: int = get_int("ABSA_MAX_LENGTH", 512)
     ML_PROGRESS_UPDATE_FREQUENCY: int = get_int("ML_PROGRESS_UPDATE_FREQUENCY", 10)
 
     # === Topic Modeling ===
@@ -92,17 +89,9 @@ class Settings:
     TOPIC_KEYWORDS_COUNT: int = get_int("TOPIC_KEYWORDS_COUNT", 5)
     TOPIC_MIN_COMMENTS: int = get_int("TOPIC_MIN_COMMENTS", 2)
 
-    # === Thresholds ===
-    ASPECT_DETECTION_THRESHOLD: float = get_float("ASPECT_DETECTION_THRESHOLD", 0.2)
-    SENTIMENT_NEGATIVE_THRESHOLD: float = get_float("SENTIMENT_NEGATIVE_THRESHOLD", -0.2)
-    SENTIMENT_POSITIVE_THRESHOLD: float = get_float("SENTIMENT_POSITIVE_THRESHOLD", 0.3)
-    SENTIMENT_CRITICAL_THRESHOLD: float = get_float("SENTIMENT_CRITICAL_THRESHOLD", -0.5)
-    ASPECT_MENTION_THRESHOLD: int = get_int("ASPECT_MENTION_THRESHOLD", 10)
-
     # === Display Limits ===
     HISTORY_LIMIT: int = get_int("HISTORY_LIMIT", 10)
     SEARCH_RESULTS_LIMIT: int = get_int("SEARCH_RESULTS_LIMIT", 5)
-    MAX_RECOMMENDATIONS: int = get_int("MAX_RECOMMENDATIONS", 5)
     RESULTS_DISPLAY_LIMIT: int = get_int("RESULTS_DISPLAY_LIMIT", 5)
 
 
